@@ -15,7 +15,7 @@ const mutations = {
 const actions = {
   async getMoneroConfig({ commit }) {
     const existingConfig = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/system/monero-config`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/system/monero-config`
     );
 
     if (existingConfig) {

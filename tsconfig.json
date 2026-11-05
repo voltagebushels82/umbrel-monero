@@ -1,24 +1,18 @@
 {
-    "compilerOptions": {
-      "module": "ESNext",
-      "esModuleInterop": true,
-      "target": "es2017",
-      "allowJs": true,
-      "noImplicitAny": true,
-      "moduleResolution": "node",
-      "sourceMap": true,
-      "outDir": "./build",
-      "baseUrl": ".",
-      "paths": {
-        "*": [
-          "node_modules/*"
-        ]
-      }
-    },
-    "include": [
-      "services/*.ts"
-    ],
-    "exclude": [
-      "node_modules"
-    ]
-  }
+  "compilerOptions": {
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "target": "es2022",
+    "allowJs": true,
+    "noImplicitAny": true,
+    "moduleResolution": "NodeNext",
+    "sourceMap": true,
+    "outDir": "./build"
+  },
+  "include": [
+    "services/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

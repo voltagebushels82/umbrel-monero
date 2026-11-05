@@ -2,7 +2,9 @@ import express from 'express';
 import * as monerod from '../../../logic/monerod.js';
 import * as safeHandler from '../../../utils/safeHandler.js';
 
+import { getMiningStatus } from '../../../build/services/monerod.js';
 const router = express.Router();
+router.get('/mining', safeHandler.safeHandler(async (req, res) => res.json(await getMiningStatus())));
 
 router.get('/connections', safeHandler.safeHandler((req, res) =>
   monerod.getConnectionsCount()
@@ -29,16 +31,11 @@ router.get('/stats', safeHandler.safeHandler((req, res) =>
       .then((statussumarry) => res.json(statussumarry)),
 ));
 
-router.get('/block', safeHandler.safeHandler((req, res) => {
-  if (req.query.hash !== undefined && req.query.hash !== null) {
-    monerod.getBlock(req.query.hash)
-        .then((blockhash) => res.json(blockhash));
-  } else if (req.query.height !== undefined && req.query.height !== null) {
-    monerod.getBlockHash(req.query.height)
-        .then((blockhash) => res.json(blockhash));
-  }
-},
-));
+router.get('/block', safeHandler.safeHandler(async (req, res) => {
+  if (typeof req.query.hash === 'string' && /^[a-fA-F0-9]{64}$/.test(req.query.hash)) return res.json(await monerod.getBlock(req.query.hash));
+  if (typeof req.query.height === 'string' && /^\d+$/.test(req.query.height) && Number.isSafeInteger(Number(req.query.height))) return res.json(await monerod.getBlockHash(Number(req.query.height)));
+  return res.status(400).json('Provide a valid block hash or height');
+}));
 
 // /v1/monerod/info/block/<hash>
 router.get('/block/:id', safeHandler.safeHandler((req, res) =>
@@ -46,17 +43,16 @@ router.get('/block/:id', safeHandler.safeHandler((req, res) =>
       .then((blockhash) => res.json(blockhash)),
 ));
 
-router.get('/blocks', safeHandler.safeHandler((req, res) => {
-  const fromHeight = parseInt(req.query.from);
-  const toHeight = parseInt(req.query.to);
+router.get('/blocks', safeHandler.safeHandler(async (req, res) => {
+  const fromHeight = Number(req.query.from);
+  const toHeight = Number(req.query.to);
 
-  if (toHeight - fromHeight > 500) {
-    res.status(500).json('Range query must be less than 500');
+  if (!Number.isSafeInteger(fromHeight) || !Number.isSafeInteger(toHeight) || fromHeight < 0 || toHeight < fromHeight || toHeight - fromHeight > 500) {
+    res.status(400).json('Provide nonnegative integer heights spanning at most 500 blocks');
     return;
   }
 
-  monerod.getBlocks(fromHeight, toHeight)
-      .then((blocks) => res.json(blocks));
+  return res.json(await monerod.getBlocks(fromHeight, toHeight));
 },
 ));
 

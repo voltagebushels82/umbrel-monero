@@ -1,36 +1,26 @@
-# Build Stage
-FROM node:22-alpine AS monero-middleware-builder
-
-# Create app directory
+FROM node:24-alpine AS builder
 WORKDIR /app
-
-# Copy 'package-lock.json' and 'package.json'
-COPY package-lock.json package.json ./
-
-# Install dependencies
-RUN npm install --production --fetch-timeout 300000
-
-# Copy project files and folders to the current working directory (i.e. '/app')
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY ui/package.json ui/package-lock.json ./ui/
+RUN npm ci --prefix ui
 COPY . .
+RUN npm run build && npm run build:ui && npm prune --omit=dev
 
-# Install TypeScript globally
-RUN npm install -g typescript
-
-# Compile TypeScript files
-RUN tsc
-
-# Install UI dependencies and build UI 
-RUN npm run install:ui
-RUN npm run build:ui
-
-# Final Stage (Production) 
-FROM node:22-alpine AS monero-middleware
-
-# Copy built code from build stage to '/app' directory
-COPY --from=monero-middleware-builder /app /app
-
-# Change directory to '/app' 
+FROM node:24-alpine
 WORKDIR /app
-
-EXPOSE 3006
-CMD [ "npm", "start" ]
+ENV NODE_ENV=production
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/ui/dist ./ui/dist
+COPY app.js ./
+COPY bin ./bin
+COPY logic ./logic
+COPY middlewares ./middlewares
+COPY models ./models
+COPY routes ./routes
+COPY services ./services
+COPY utils ./utils
+EXPOSE 8889
+CMD ["npm", "start"]

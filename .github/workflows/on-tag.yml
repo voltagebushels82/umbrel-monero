@@ -12,6 +12,9 @@ jobs:
   build:
     name: Build Docker image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Set VERSION
         run: echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV

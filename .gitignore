@@ -22,5 +22,6 @@ umbrel@umbrel.local
 .vscode/diff/vulsCount.txt
 .vscode/settings.json
 .eslintrc.json
-utils/const.js
 build/
+playwright-report/
+test-results/

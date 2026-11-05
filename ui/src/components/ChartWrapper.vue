@@ -4,7 +4,7 @@
       class="px-3 px-lg-4 pb-2 d-flex flex-wrap w-100 justify-content-between align-items-center"
     >
       <h6
-        class="mb-0 font-weight-normal text-muted"
+        class="mb-0 fw-normal text-muted"
         :class="{ invisible: !isSynced }"
       >
         Transactions on the network

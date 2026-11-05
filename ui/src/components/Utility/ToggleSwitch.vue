@@ -1,6 +1,6 @@
 <template>
   <!-- div wrapper with v-b-tooltip to allow tooltip to show when toggle is disabled -->
-  <div v-b-tooltip.hover.left :title="tooltip">
+  <div :title="tooltip">
     <div
       class="toggle"
       :class="{

@@ -1,4 +1,4 @@
-<template v-slot:modal-header="{ close }" title="Connect to Monero Node">
+<template>
   <div
     class="px-2 px-sm-3 pt-2 d-flex flex-column justify-content-between w-100 mt-n4"
   >
@@ -20,7 +20,7 @@
         </div>
         <div class="col-12 col-lg-8 align-items-center">
           <label class="mb-1 d-block"
-            ><small class="font-weight-bold"
+            ><small class="fw-bold"
               >Select mode and network</small
             ></label
           >
@@ -41,7 +41,7 @@
             <b-row>
               <b-col cols="12" lg="6">
                 <label class="mb-1 d-block"
-                  ><small class="font-weight-bold"
+                  ><small class="fw-bold"
                     >Monero RPC Username</small
                   ></label
                 >
@@ -49,7 +49,7 @@
                   v-if="rpc.rpcuser"
                   class="mb-2"
                   size="sm"
-                  :value="rpc.rpcuser"
+                  :value="chosenMode === 'rpcRestricted' ? rpc.restrictedRpcuser : rpc.rpcuser"
                 ></input-copy>
                 <span
                   class="loading-placeholder loading-placeholder-lg mt-1"
@@ -60,7 +60,7 @@
 
               <b-col cols="12" lg="6">
                 <label class="mb-1 d-block"
-                  ><small class="font-weight-bold"
+                  ><small class="fw-bold"
                     >Monero RPC Password</small
                   ></label
                 >
@@ -68,7 +68,7 @@
                   v-if="rpc.rpcpassword"
                   class="mb-2"
                   size="sm"
-                  :value="rpc.rpcpassword"
+                  :value="chosenMode === 'rpcRestricted' ? rpc.restrictedRpcpassword : rpc.rpcpassword"
                 ></input-copy>
                 <span
                   class="loading-placeholder loading-placeholder-lg mt-1"
@@ -79,7 +79,7 @@
 
               <b-col cols="12" lg="6">
                 <label class="mb-1 d-block"
-                  ><small class="font-weight-bold"
+                  ><small class="fw-bold"
                     >Monero RPC Address (Host)</small
                   ></label
                 >
@@ -100,7 +100,7 @@
 
               <b-col cols="12" lg="6">
                 <label class="mb-1 d-block"
-                  ><small class="font-weight-bold"
+                  ><small class="fw-bold"
                     >Monero RPC Port</small
                   ></label
                 >
@@ -125,7 +125,7 @@
           <!-- P2P Section -->
           <div v-if="chosenMode === 'p2pLocal' || chosenMode === 'p2pTor'">
             <label class="mb-1 d-block"
-              ><small class="font-weight-bold"
+              ><small class="fw-bold"
                 >Monero P2P Address (Host)</small
               ></label
             >
@@ -145,10 +145,10 @@
               ></span>
             </div>
             <label class="mb-1 d-block"
-              ><small class="font-weight-bold">Monero P2P Port</small></label
+              ><small class="fw-bold">Monero P2P Port</small></label
             >
             <div v-if="p2p.port">
-              <input-copy class="mb-2" size="sm" :value="p2p.port"></input-copy>
+              <input-copy class="mb-2" size="sm" :value="chosenMode === 'p2pTor' ? p2p.onionPort : p2p.port"></input-copy>
             </div>
             <span
               class="loading-placeholder loading-placeholder-lg mt-1"
@@ -158,6 +158,7 @@
           </div>
         </div>
       </div>
+      <p class="mt-2">ZMQ RPC: {{ rpc.localAddress }}:{{ rpc.zmqPort }}. P2Pool ZMQ publish: {{ rpc.localAddress }}:{{ rpc.zmqPubPort }}. Enable ZMQ in Advanced Settings and expose these ports on the host.</p>
       <p class="mt-2">
         Looking for step-by-step instructions to connect your wallet to your
         Monero node?
@@ -213,9 +214,7 @@ export default {
       return "";
     }
   },
-  created() {
-    console.log(this.rpc, this.p2p);
-  },
+
   components: {
     QrCode,
     InputCopy

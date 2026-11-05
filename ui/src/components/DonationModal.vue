@@ -1,4 +1,4 @@
-<template v-slot:modal-body>
+<template>
   <div class="text-center">
     <qr-code
       :value="`xmr:${address}`"

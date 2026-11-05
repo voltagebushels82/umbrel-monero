@@ -10,7 +10,7 @@
           style
         ></span>
         <div class="d-flex align-items-baseline" v-else>
-          <h3 class="font-weight-normal mb-0">
+          <h3 class="fw-normal mb-0">
             <!-- suffix number like 100K, 120K, 2M, etc -->
             <CountUp
               :value="{
@@ -25,24 +25,8 @@
             suffix
           }}</span>
 
-        <div class="ml-1">
-            <b-popover
-              v-if="showPopover"
-              :target="popoverId"
-              placement="bottom"
-              triggers="hover focus"
-            >
-              <p v-for="content in popoverContent" :key="content" class="m-0">{{ content }}</p>
-            </b-popover>
-
-            <b-icon
-              v-if="showPopover"
-              :id="popoverId"
-              icon="info-circle"
-              size="lg"
-              style="cursor: pointer"
-              class="text-muted"
-            ></b-icon>
+        <div class="ms-1">
+            <span v-if="showPopover" :id="popoverId" :title="popoverContent.join(' · ')" tabindex="0" class="text-muted" aria-label="More information">ⓘ</span>
           </div>
 
         </div>
@@ -71,7 +55,7 @@
           />
         </svg>
         <span
-          class="change-text ml-1"
+          class="change-text ms-1"
           :class="{
             'text-success': change.value > 0,
             'text-danger': change.value < 0,

@@ -5,7 +5,7 @@ export async function getBlockCount() {
   await monerodService.isReady();
   const blockCount = await monerodService.getBlockCount();
 
-  return {blockCount: blockCount.result};
+  return {blockCount};
 }
 
 export async function getConnectionsCount() {
@@ -25,17 +25,10 @@ export async function getConnectionsCount() {
       inBoundConnections++;
     }
 
-    // TODO
-    // if (peer.type === "onion") {
-    //   torConnections++;
-    // } else if (peer.type === "i2p") {
-    //   i2pConnections++;
-    // } else {
-    //   // ipv4 and ipv6 are clearnet
-    //   clearnetConnections++;
-    // }
+    if (peer.type === 3 || peer.addrLocal?.includes('.onion')) torConnections++;
+    else if (peer.type === 4 || peer.addrLocal?.includes('.i2p')) i2pConnections++;
+    else clearnetConnections++;
 
-    clearnetConnections++;
   });
 
   const connections = {
@@ -51,8 +44,8 @@ export async function getConnectionsCount() {
 }
 
 export async function getStatus() {
-  await monerodService.isReady();
   try {
+    await monerodService.isReady();
     const connected = await monerodService.getIsConnected();
     if (connected.result === true) {
       return {operational: true};
@@ -242,7 +235,7 @@ export async function getBlocks(fromHeight, toHeight) {
   // loop from 'to height' till 'from Height'
   for (let currentHeight = toHeight - 1; currentHeight >= fromHeight; currentHeight--) {
     // terminate loop if we reach the genesis block
-    if (currentHeight === 0) {
+    if (currentHeight < 0) {
       break;
     }
 

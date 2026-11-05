@@ -20,4 +20,11 @@ coverage
 Makefile
 *.env
 .github/
-bitcoin
+bitcoinui/node_modules
+ui/dist
+data
+build
+.env
+.env.*
+playwright-report
+test-results

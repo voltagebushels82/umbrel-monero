@@ -5,7 +5,7 @@
 </template>
 
 <script>
-import moment from "moment";
+
 
 export default {
   props: {
@@ -32,7 +32,7 @@ export default {
         },
         tooltip: {
           formatter: function() {
-            return `<span>${moment(this.x * 1000).format("MMM DD, h:mma")}<br/><br/>${this.y.toLocaleString()} transactions</span>`;
+            return `<span>${new Date(this.x * 1000).toLocaleString()}<br/><br/>${this.y.toLocaleString()} transactions</span>`;
           },
           backgroundColor: null,
           borderWidth: 0,
@@ -117,28 +117,12 @@ export default {
         ]
       };
     },
-    computedChartOptions() {
-      const selectedFilter = this.selectedFilter;
-      let localOptions = Object.assign({}, this.chartOptions);
-      localOptions.series[0].data = this.chartData;
-      localOptions.xAxis.labels = {
-        formatter: function() {
-          if (selectedFilter === "7d") {
-            return moment(this.value).format("DD MMM");
-          } else if (selectedFilter === "3d") {
-            return moment(this.value).format("DD MMM, ha");
-          } else {
-            return moment(this.value).format("LT");
-          }
-        }
-      };
-      return localOptions;
-    }
+
   },
 };
 </script>
 
-<style lan ChartEmptyStateg="scss">
+<style lang="scss">
 .highcharts-tooltip > span {
   border-radius: 0.5em;
   box-shadow: 0 0.5rem 1rem rgba(20, 24, 33, 0.15);

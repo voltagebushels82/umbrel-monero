@@ -1,12 +1,11 @@
-import Vue from "vue";
-import Vuex from "vuex";
+import { createStore } from "vuex";
 
 //Modules
 import system from "./modules/system";
 import monero from "./modules/monero";
 import user from "./modules/user";
 
-Vue.use(Vuex);
+
 
 // Initial State
 const state = {
@@ -41,7 +40,7 @@ const actions = {
   }
 };
 
-export default new Vuex.Store({
+export default createStore({
   state,
   mutations,
   actions,

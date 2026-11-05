@@ -1,10 +1,10 @@
-<template v-slot:modal-header="{ close }" title="Advanced Settings">
+<template>
   <b-form @submit.prevent="submit">
     <div
       class="px-0 px-sm-3 pb-3 d-flex flex-column justify-content-between w-100"
     >
       <h3 class="mt-1">Advanced Settings</h3>
-      <b-alert variant="warning" show class="mb-3">
+      <b-alert variant="warning" :model-value="true" class="mb-3">
         <small>
           Be careful when changing the settings below as they may cause issues
           with other apps on your Umbrel that connect to your Monero node. Only
@@ -22,7 +22,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="tor">
-                  <p class="font-weight-bold mb-0">
+                  <p class="fw-bold mb-0">
                     Outgoing Connections to Tor Peers
                   </p>
                 </label>
@@ -37,17 +37,30 @@
               </div>
             </div>
             <small class="w-sm-75 d-block text-muted mt-1">
-              Connect to peers available on the Tor network.
+              Connect to Tor peers and relay transactions through Tor. Other outgoing peers still use clearnet unless Tor-only routing is enabled.
             </small>
           </div>
 
+
+          <hr class="advanced-settings-divider" />
+          <div class="d-flex justify-content-between align-items-center">
+            <label for="tor-only">Route all outgoing P2P traffic through Tor</label>
+            <toggle-switch id="tor-only" :on="settings.torOnly" @toggle="status => { settings.torOnly = status; if (status) settings.tor = true; }" />
+          </div>
+          <small class="text-muted">Disables direct incoming clearnet peers, UPnP and DNS lookups. Requires a working Tor SOCKS proxy. The Tor peers option alone only proxies Tor connections and transactions.</small>
+          <hr class="advanced-settings-divider" />
+          <div class="d-flex justify-content-between align-items-center">
+            <label for="zmq">Enable ZMQ for P2Pool</label>
+            <toggle-switch id="zmq" :on="settings.zmq" @toggle="status => (settings.zmq = status)" />
+          </div>
+          <small class="text-muted">Connection details show separate ZMQ RPC and publish ports. Publish the ports in your deployment before connecting P2Pool.</small>
           <hr class="advanced-settings-divider" />
           <!-- 
           <div>
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="I2P">
-                  <p class="font-weight-bold mb-0">
+                  <p class="fw-bold mb-0">
                     Outgoing Connections to I2P Peers
                   </p>
                 </label>
@@ -72,7 +85,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="dbsalvage">
-                  <p class="font-weight-bold mb-0">Salvage Database</p>
+                  <p class="fw-bold mb-0">Salvage Database</p>
                 </label>
               </div>
               <div>
@@ -95,7 +108,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="p2pFullNode">
-                  <p class="font-weight-bold mb-0">Enable P2P Full Node</p>
+                  <p class="fw-bold mb-0">Enable P2P Full Node</p>
                 </label>
               </div>
               <div>
@@ -118,7 +131,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="public-node">
-                  <p class="font-weight-bold mb-0">Public Node</p>
+                  <p class="fw-bold mb-0">Public Node</p>
                 </label>
               </div>
               <div>
@@ -131,9 +144,7 @@
               </div>
             </div>
             <small class="w-sm-75 d-block text-muted mt-1">
-              Advertise to the network that your node is public. This feature
-              will disable most RPC calls so only use if you know what you are
-              doing.
+              Advertise the restricted RPC interface for wallets. The private RPC interface remains available to this dashboard.
             </small>
           </div>
 
@@ -143,7 +154,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="hidePort">
-                  <p class="font-weight-bold mb-0">Hide Port</p>
+                  <p class="fw-bold mb-0">Hide Port</p>
                 </label>
               </div>
               <div>
@@ -170,7 +181,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="mining">
-                  <p class="font-weight-bold mb-0">
+                  <p class="fw-bold mb-0">
                     Enable mining on the server
                   </p>
                 </label>
@@ -192,7 +203,7 @@
               class="mt-3 mb-3"
               :minValue="1"
               :maxValue="100"
-              :startingValue="33"
+              :startingValue="settings.minercpuTarget || 40"
               :disabled="!settings.mining"
               @change="value => (settings.minercpuTarget = value)"
             ></miner-slider>
@@ -204,7 +215,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="moneroAddress">
-                  <p class="font-weight-bold mb-0">Monero Address</p>
+                  <p class="fw-bold mb-0">Monero Address</p>
                 </label>
               </div>
               <div>
@@ -227,7 +238,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="upnp">
-                  <p class="font-weight-bold mb-0">Enable UPnP on Node</p>
+                  <p class="fw-bold mb-0">Enable UPnP on Node</p>
                 </label>
               </div>
               <div>
@@ -250,7 +261,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="checkpoint">
-                  <p class="font-weight-bold mb-0">
+                  <p class="fw-bold mb-0">
                     Enable DNS Checkpointing on Node
                   </p>
                 </label>
@@ -275,7 +286,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="allow-incoming-connections">
-                  <p class="font-weight-bold mb-0">Incoming Connections</p>
+                  <p class="fw-bold mb-0">Incoming Connections</p>
                 </label>
               </div>
               <div>
@@ -301,7 +312,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="dbSyncMode">
-                  <p class="font-weight-bold mb-0">DB Sync Mode</p>
+                  <p class="fw-bold mb-0">DB Sync Mode</p>
                 </label>
               </div>
               <div class="">
@@ -326,7 +337,7 @@
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
                 <label class="mb-0" for="network">
-                  <p class="font-weight-bold mb-0">Network</p>
+                  <p class="fw-bold mb-0">Network</p>
                 </label>
               </div>
 
@@ -351,7 +362,7 @@
             <div
               class="col-12 col-md-8 col-sm-12 d-flex flex-column align-items-start mb-md-0"
             >
-              <p class="font-weight-bold mb-0">Monero Donation Address</p>
+              <p class="fw-bold mb-0">Monero Donation Address</p>
               <small class=" d-block text-muted mt-1 mb-3">
                 To support our developers, please consider donating to our
                 Monero address. Funds will go towards development of this app
@@ -361,7 +372,7 @@
             <div
               class="col-12 col-md-4 col-sm-12 d-flex justify-content-center justify-content-md-end align-items-center"
             >
-              <div ref="address" class="d-none">{{ address }}</div>
+              
               <donation></donation>
             </div>
           </div>
@@ -372,7 +383,7 @@
             <div
               class="col-12 col-md-8 col-sm-12 d-flex flex-column align-items-start mb-md-0"
             >
-              <p class="font-weight-bold mb-0">Support & Feedback</p>
+              <p class="fw-bold mb-0">Support & Feedback</p>
               <small class=" d-block text-muted mt-1 mb-3">
                 Follow me on Twitter
                 <a href="https://twitter.com/deverickapollo" target="_blank"
@@ -383,7 +394,7 @@
             <div
               class="col-12 col-md-4 col-sm-12 d-flex justify-content-center justify-content-md-end align-items-center"
             >
-              <div ref="address" class="d-none">{{ address }}</div>
+              
               <donation></donation>
             </div>
           </div> -->
@@ -391,7 +402,7 @@
             <div
               class="col-12 col-md-8 col-sm-12 d-flex flex-column align-items-start mb-md-0"
             >
-              <p class="font-weight-bold mb-0">Support & Feedback</p>
+              <p class="fw-bold mb-0">Support & Feedback</p>
               <small class="d-block text-muted mt-1 mb-3">
                 Encountered an issue or have a feature request?
               </small>
@@ -420,7 +431,7 @@
 
       <b-alert
         variant="warning"
-        :show="showOutgoingConnectionsError"
+        :model-value="showOutgoingConnectionsError"
         class="mt-2"
         @dismissed="showOutgoingConnectionsError = false"
       >
@@ -432,7 +443,7 @@
 
       <b-alert
         variant="warning"
-        :show="showMiningError"
+        :model-value="showMiningError"
         class="mt-2"
         @dismissed="showMiningError = false"
       >
@@ -472,14 +483,15 @@
 </template>
 
 <script>
-import cloneDeep from "lodash.clonedeep";
+import API from "@/helpers/api";
 import { mapState } from "vuex";
 import ToggleSwitch from "./Utility/ToggleSwitch.vue";
-import { MoneroUtils } from "monero-javascript";
+
 import MinerSlider from "./MinerSlider.vue";
 import Donation from "@/components/DonationModal";
 
 export default {
+  emits: ["submit", "clickRestoreDefaults"],
   data() {
     return {
       settings: {
@@ -492,7 +504,7 @@ export default {
       ],
       networks: [
         { value: "mainnet", text: "mainnet" },
-        { value: "test", text: "testnet" },
+        { value: "testnet", text: "testnet" },
         { value: "stagenet", text: "stagenet" }
       ],
       showOutgoingConnectionsError: false,
@@ -506,6 +518,7 @@ export default {
       p2p: state => state.monero.p2p
     })
   },
+  watch: { moneroConfig() { this.setSettings(); } },
   props: {
     isSettingsDisabled: {
       type: Boolean,
@@ -524,7 +537,7 @@ export default {
     async submit() {
       this.showOutgoingConnectionsError = false;
       this.showMiningError = false;
-      const addressVerification = await this.isValidAddress(
+      const addressVerification = !this.settings.mining || await this.isValidAddress(
         this.settings.moneroAddress
       );
       if (!this.isOutgoingConnectionsValid())
@@ -543,14 +556,15 @@ export default {
     },
     setSettings() {
       // deep clone moneroConfig in order to properly reset state if user hides modal instead of clicking the save and restart button
-      this.settings = cloneDeep(this.moneroConfig);
+      this.settings = JSON.parse(JSON.stringify(this.moneroConfig));
     },
     isOutgoingConnectionsValid() {
-      return this.settings.tor;
+      return !this.settings.torOnly || this.settings.tor;
       //return this.settings.tor || this.settings.i2p;
     },
     async isValidAddress(address) {
-      const isValid = await MoneroUtils.isValidAddress(address, 0);
+      const { data } = await API.post(`${import.meta.env.VITE_API_BASE_URL || ""}/v1/monerod/system/validate-address`, {address, network: this.settings.network});
+      const isValid = data.valid;
       if (isValid) return true;
       return false;
     }

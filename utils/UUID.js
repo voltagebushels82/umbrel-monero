@@ -1,6 +1,1 @@
-
-import * as uuidv4 from 'uuid/v4.js';
-
-export const create = uuidv4;
-
-
+export { randomUUID as create } from 'node:crypto';

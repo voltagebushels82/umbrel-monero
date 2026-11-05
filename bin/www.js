@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { startRestrictedRpcGateway } from '../services/restrictedRpc.js';
 
 /**
  * Module dependencies.
@@ -24,6 +25,7 @@ app.default.set('port', port);
  */
 
 const server = http.createServer(app.default);
+startRestrictedRpcGateway();
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -138,7 +140,16 @@ async function onListening() {
     'port ' + addr.port;
   debug('Listening on ' + bind);
   console.log('Listening on ' + bind);
-  await monerodLogic.getIsReady();
+
+
+  try {
+    if (await diskLogic.repairLegacyConfig()) {
+      console.log('Repaired legacy Monero network/bind configuration');
+      if ((await monerodLogic.getStatus()).operational) await monerodLogic.stop();
+    }
+  } catch (error) {
+    console.error('Unable to repair legacy configuration:', error.message);
+  }
 
   // if bitmonero.conf does not exist, create default monero config files and restart monerod.
   if (! await diskService.fileExists(constants.MONERO_CONF_FILEPATH)) {

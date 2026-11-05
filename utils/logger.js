@@ -5,7 +5,7 @@ import * as constants from './const.js';
 import fs from 'fs';
 import path from 'path';
 import winston, { format } from 'winston';
-import { getNamespace } from 'continuation-local-storage';
+import { requestContext } from '../middlewares/requestCorrelationId.js';
 
 const {combine, timestamp, printf} = format;
 
@@ -19,10 +19,7 @@ if (!fs.existsSync(logDir)) {
 }
 
 const appendCorrelationId = format((info, opts) => {
-  const apiRequest = getNamespace(constants.REQUEST_CORRELATION_NAMESPACE_KEY);
-  if (apiRequest) {
-    info.internalCorrelationId = apiRequest.get(constants.REQUEST_CORRELATION_ID_KEY);
-  }
+  info.internalCorrelationId = requestContext.getStore()?.reqId;
 
   return info;
 });

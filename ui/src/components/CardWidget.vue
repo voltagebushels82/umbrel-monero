@@ -10,7 +10,7 @@
     <div>
       <div class="card-custom-header py-4 px-3 px-lg-4" v-if="header">
         <div class="d-flex w-100 justify-content-between align-items-center">
-          <h6 class="mb-0 font-weight-normal text-muted">{{ header }}</h6>
+          <h6 class="mb-0 fw-normal text-muted">{{ header }}</h6>
           <status
             v-if="!!status"
             :variant="status.variant"
@@ -21,8 +21,8 @@
           <!-- header on the right, else it causes spacing issues -->
           <div
             v-if="
-              (!!$slots['header-right'] && !!$slots['header-right'][0]) ||
-                (!!$slots['menu'] && !!$slots['menu'][0])
+              !!$slots['header-right'] ||
+                !!$slots['menu']
             "
           >
             <slot name="header-right"></slot>
@@ -31,7 +31,7 @@
               toggle-class="text-decoration-none p-0"
               no-caret
               right
-              class="ml-2"
+              class="ms-2"
             >
               <template v-slot:button-content>
                 <svg
@@ -78,7 +78,7 @@
                 <p class="text-muted mb-0" v-if="subTitle">{{ subTitle }}</p>
               </div>
             </div>
-            <img :alt="header" :src="require(`@/assets/${icon}`)" v-if="icon" />
+            <img :alt="header" :src="assetUrl(icon)" v-if="icon" />
           </div>
         </div>
         <slot></slot>
@@ -104,7 +104,8 @@ export default {
     loading: Boolean
   },
   computed: {},
-  methods: {},
+  methods: {
+    assetUrl(icon) { return new URL(`../assets/${icon}`, import.meta.url).href; },},
   components: {
     Status
   }

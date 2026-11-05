@@ -1,16 +1,6 @@
-import * as UUID from '../utils/UUID.js';
-import * as constants from '../utils/const.js';
-import { createNamespace } from 'continuation-local-storage';
-const apiRequest = createNamespace(constants.REQUEST_CORRELATION_NAMESPACE_KEY);
-
-
-export function addCorrelationId(req, res, next) {
-  apiRequest.bindEmitter(req);
-  apiRequest.bindEmitter(res);
-  apiRequest.run(function() {
-    apiRequest.set(constants.REQUEST_CORRELATION_ID_KEY, UUID.create);
-    next();
-  });
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
+export const requestContext = new AsyncLocalStorage();
+export default function addCorrelationId(req, res, next) {
+  requestContext.run({reqId: randomUUID()}, next);
 }
-
-export default addCorrelationId;

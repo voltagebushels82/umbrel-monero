@@ -1,8 +1,6 @@
 <template>
   <div class="content-container px-2">
-    <transition name="change-page" mode="out-in">
-      <router-view></router-view>
-    </transition>
+    <router-view v-slot="{ Component }"><transition name="change-page" mode="out-in"><component :is="Component" /></transition></router-view>
   </div>
 </template>
 

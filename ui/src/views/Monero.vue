@@ -8,7 +8,7 @@
           class="d-flex flex-grow-1 justify-content-start align-items-start mb-3"
         >
           <img
-            class="app-icon mr-2 mr-sm-3"
+            class="app-icon me-2 me-sm-3"
             src="@/assets/community-monero-icon.svg"
           />
           <div>
@@ -26,11 +26,11 @@
                 :fill="`${isMoneroCoreOperational ? '#00CD98' : '#F6B900'}`"
               />
             </svg>
-            <small v-if="isMoneroCoreOperational" class="ml-1 text-success"
+            <small v-if="isMoneroCoreOperational" class="ms-1 text-success"
               >Running</small
             >
-            <small v-else class="ml-1 text-warning">Starting</small>
-            <h3 class="d-block font-weight-bold mb-1">Monero Node</h3>
+            <small v-else class="ms-1 text-warning">Starting</small>
+            <h3 class="d-block fw-bold mb-1">Monero Node</h3>
             <span class="d-block text-muted">{{
               version ? `Monero Core ${version}` : "..."
             }}</span>
@@ -43,15 +43,15 @@
           <b-button
             type="button"
             variant="primary"
-            class="btn capitalize py-1 pl-2 pr-3 w-100 custom-connect-btn"
-            v-b-modal.connect-modal
+            class="btn capitalize py-1 ps-2 pe-3 w-100 custom-connect-btn"
+            @click="showConnectModal = true"
           >
-            <b-icon icon="plus" aria-hidden="true"></b-icon>
+            <span aria-hidden="true">+</span>
             Connect
           </b-button>
 
           <b-dropdown
-            class="ml-3"
+            class="ms-3"
             variant="link"
             toggle-class="text-decoration-none p-0"
             no-caret
@@ -87,9 +87,9 @@
             </template>
             <b-dropdown-item
               href="#"
-              v-b-modal.advanced-settings-modal
+              @click="showSettingsModal = true"
               class="custom-dropdown"
-              ><b-badge pill variant="primary" class="mr-1 custom-badge"
+              ><b-badge pill variant="primary" class="me-1 custom-badge"
                 >New</b-badge
               >
               Advanced Settings</b-dropdown-item
@@ -97,22 +97,22 @@
           </b-dropdown>
         </div>
       </div>
-      <b-alert :show="showReindexCompleteAlert" variant="warning"
+      <b-alert :model-value="showReindexCompleteAlert" variant="warning"
         >Reindexing is now complete. Turn off "Reindex blockchain" in
         <span
           class="open-settings"
-          @click="() => $bvModal.show('advanced-settings-modal')"
+          @click="showSettingsModal = true"
           >advanced settings</span
         >
         to prevent reindexing every time Monero Node restarts.</b-alert
       >
 
-      <b-alert :show="showReindexInProgressAlert" variant="info"
+      <b-alert :model-value="showReindexInProgressAlert" variant="info"
         >Reindexing in progress...</b-alert
       >
 
       <b-alert
-        :show="showRestartError"
+        :model-value="showRestartError"
         variant="danger"
         dismissible
         @dismissed="showRestartError = false"
@@ -122,6 +122,7 @@
       </b-alert>
     </div>
 
+    <p class="px-3" data-testid="mining-status">Local mining: {{ !mining.available ? 'Unavailable' : mining.active ? 'Active' : 'Inactive' }}<span v-if="mining.available"> · {{ mining.speed }} H/s · {{ mining.threads }} threads</span></p>
     <b-row class="row-eq-height">
       <b-col col cols="12" md="5" lg="4">
         <card-widget
@@ -135,7 +136,7 @@
             <div class="px-3 px-lg-4 mb-5">
               <div class="w-100 d-flex justify-content-between mb-2">
                 <span class="align-self-end">Synchronized</span>
-                <h3 class="font-weight-normal mb-0">
+                <h3 class="fw-normal mb-0">
                   <span v-if="syncPercent !== -1">
                     {{ syncPercent }}
                     <small class>%</small>
@@ -155,7 +156,7 @@
                 :style="{ height: '4px' }"
               ></b-progress>
               <small
-                class="text-muted d-block text-right"
+                class="text-muted d-block text-end"
                 v-if="currentBlock < blockHeight - 1"
               >
                 {{ currentBlock.toLocaleString() }} of
@@ -204,7 +205,7 @@
                 </b-col>
                 <b-col col cols="6" md="3">
                   <stat
-                    title="Hashrate"
+                    title="Network hashrate"
                     :value="abbreviateHashRate(stats.hashrate)[0]"
                     :suffix="abbreviateHashRate(stats.hashrate)[1]"
                     hasDecimals
@@ -227,19 +228,19 @@
       </b-col>
     </b-row>
 
-    <b-modal id="connect-modal" size="lg" centered hide-footer>
+    <b-modal v-model="showConnectModal" id="connect-modal" size="lg" centered hide-footer>
       <connection-modal></connection-modal>
     </b-modal>
 
     <b-modal
-      id="advanced-settings-modal"
+      v-model="showSettingsModal" id="advanced-settings-modal"
       size="lg"
       centered
       hide-footer
       scrollable
     >
       <advanced-settings-modal
-        :isSettingsDisabled="isRestartPending"
+        v-if="showSettingsModal" :isSettingsDisabled="isRestartPending"
         @submit="saveSettingsAndRestartMonero"
         @clickRestoreDefaults="restoreDefaultSettingsAndRestartMonero"
       ></advanced-settings-modal>
@@ -264,6 +265,9 @@ import ChartWrapper from "@/components/ChartWrapper.vue";
 export default {
   data() {
     return {
+      disposed: false,
+      showConnectModal: false,
+      showSettingsModal: false,
       isRestartPending: false,
       showRestartError: false
     };
@@ -277,11 +281,13 @@ export default {
       currentBlock: state => state.monero.currentBlock,
       blockHeight: state => state.monero.blockHeight,
       stats: state => state.monero.stats,
+      mining: state => state.monero.mining,
       peers: state => state.monero.peers,
       rpc: state => state.monero.rpc,
       p2p: state => state.monero.p2p,
       reindex: state => state.user.moneroConfig.reindex,
       network: state => state.user.moneroConfig.network,
+      torProxy: state => state.user.moneroConfig.torOnly,
       pruned: state => state.monero.pruned
     }),
     showReindexInProgressAlert() {
@@ -355,7 +361,7 @@ export default {
         this.$store.dispatch("user/updateMoneroConfig", moneroConfig);
 
         const response = await API.post(
-          `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/system/update-monero-config`,
+          `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/system/update-monero-config`,
           { moneroConfig }
         );
 
@@ -372,7 +378,7 @@ export default {
         console.error(error);
         this.fetchMoneroConfigSettings();
         this.showRestartError = true;
-        this.$bvModal.hide("advanced-settings-modal");
+        this.showSettingsModal = false;
         this.isRestartPending = false;
       }
     },
@@ -382,7 +388,7 @@ export default {
         this.isRestartPending = true;
 
         const response = await API.post(
-          `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/system/restore-default-monero-config`
+          `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/system/restore-default-monero-config`
         );
 
         // dispatch getMoneroConfig after post request to avoid referencing default values in the store.
@@ -401,7 +407,7 @@ export default {
         console.error(error);
         this.fetchMoneroConfigSettings();
         this.showRestartError = true;
-        this.$bvModal.hide("advanced-settings-modal");
+        this.showSettingsModal = false;
         this.isRestartPending = false;
       }
     }
@@ -410,25 +416,31 @@ export default {
     // fetch settings first because monero core
     // is not operational if pruning is in progress
     this.fetchMoneroConfigSettings();
+    this.fetchConnectionDetails();
 
     // wait until monero is operational
-    while (true) { /* eslint-disable-line */
+    while (!this.disposed) {
       await this.$store.dispatch("monero/getStatus");
+      await this.$store.dispatch("monero/getMining");
       if (this.isMoneroCoreOperational) {
         break;
       }
       await delay(1000);
     }
+    if (this.disposed) return;
     this.$store.dispatch("monero/getVersion");
     this.fetchStats();
     this.fetchPeers();
     this.fetchConnectionDetails();
     this.interval = window.setInterval(() => {
+      this.$store.dispatch("monero/getStatus");
+      this.$store.dispatch("monero/getMining");
       this.fetchStats();
       this.fetchPeers();
     }, 5000);
   },
-  beforeDestroy() {
+  beforeUnmount() {
+    this.disposed = true;
     if (this.interval) {
       window.clearInterval(this.interval);
     }

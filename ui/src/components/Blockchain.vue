@@ -43,7 +43,7 @@
                   <div class="blockchain-block-icon-bg"></div>
                 </div>
                 <div class="align-self-center">
-                  <h6 class="mb-1 font-weight-normal">
+                  <h6 class="mb-1 fw-normal">
                     Block {{ block.height.toLocaleString() }}
                   </h6>
                   <small class="text-muted" v-if="block.numTransactions">
@@ -56,7 +56,7 @@
                 </div>
               </div>
               <small
-                class="text-muted align-self-center text-right blockchain-block-timestamp"
+                class="text-muted align-self-center text-end blockchain-block-timestamp"
                 v-if="block.time"
                 :title="blockReadableTime(block.time)"
                 >{{ blockTime(block.time) }}</small
@@ -114,7 +114,7 @@
                 </div>
               </div>
               <span
-                class="loading-placeholder loading-placeholder-sm align-self-center text-right"
+                class="loading-placeholder loading-placeholder-sm align-self-center text-end"
                 style="width: 40px"
               ></span>
             </div>
@@ -126,7 +126,7 @@
 </template>
 
 <script>
-import moment from "moment";
+
 import { mapState } from "vuex";
 
 export default {
@@ -177,14 +177,14 @@ export default {
     blockTime(timestamp) {
       const minedAt = timestamp * 1000;
       //sometimes the block can have a timestamp with a few seconds in the future compared to browser's time
-      if (moment(minedAt).isBefore(moment())) {
-        return moment(minedAt).fromNow();
+      if (minedAt < Date.now()) {
+        return new Intl.RelativeTimeFormat(undefined, {numeric: "auto"}).format(-Math.floor((Date.now() - minedAt) / 60000), "minute");
       } else {
         return "just now";
       }
     },
     blockReadableTime(timestamp) {
-      return moment(timestamp * 1000).format("MMMM D, h:mm:ss a");
+      return new Date(timestamp * 1000).toLocaleString();
     }
   },
   created() {
@@ -202,7 +202,7 @@ export default {
       this.poller(newPercent);
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.clearInterval(this.polling);
   },
   props: {

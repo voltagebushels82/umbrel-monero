@@ -1,10 +1,9 @@
-import Vue from "vue";
-import VueRouter from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 
 import Layout from "@/layouts/Layout.vue";
 import Monero from "@/views/Monero.vue";
 
-Vue.use(VueRouter);
+
 
 const routes = [
   {
@@ -21,9 +20,8 @@ const routes = [
   }
 ];
 
-const router = new VueRouter({
-  mode: "history",
-  base: process.env.BASE_URL,
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior: (to, from, savedPosition) => {
     // Exists when Browser's back/forward pressed
@@ -46,7 +44,7 @@ const router = new VueRouter({
       return {};
     }
     // Scroll to top
-    return { x: 0, y: 0 };
+    return { left: 0, top: 0 };
   }
 });
 

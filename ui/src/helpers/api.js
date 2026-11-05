@@ -1,71 +1,11 @@
 import axios from "axios";
-import store from "@/store";
+
 
 // An object to store the response time of completed API requests
 const responseTime = {};
 
 // An object to store pending API requests
 const responsePending = {};
-
-// Interceptor to refresh JWT or logout user based on 401 requests
-// and to logout user if lnd is locked
-axios.interceptors.response.use(
-  function(response) {
-    // Any status code that lie within the range of 2xx cause this function to trigger
-    // Do something with response data
-    return response;
-  },
-  async function(error) {
-    // Any status codes that falls outside the range of 2xx cause this function to trigger
-
-    // Return any error which is not related to auth
-    if (!error.response || error.response.status !== 401) {
-      return Promise.reject(error);
-    }
-
-    // Return the same 401 back if user is trying to login with incorrect password
-    if (
-      error.config.url ===
-      `${process.env.VUE_APP_MANAGER_API_URL}/v1/account/login`
-    ) {
-      return Promise.reject(error);
-    }
-
-    // Logout user if token refresh didn't work
-    if (
-      error.config.url ===
-      `${process.env.VUE_APP_MANAGER_API_URL}/v1/account/refresh`
-    ) {
-      store.dispatch("user/logout");
-      return Promise.reject(error);
-    }
-
-    // Try request again with new token if error is due to invalid JWT
-
-    if (error.response.data === "Invalid JWT") {
-      try {
-        await store.dispatch("user/refreshJWT");
-      } catch (error) {
-        return Promise.reject(error);
-      }
-
-      // New request with new token
-      const config = error.config;
-      config.headers["Authorization"] = `JWT ${store.state.user.jwt}`;
-
-      return new Promise((resolve, reject) => {
-        axios
-          .request(config)
-          .then(response => {
-            resolve(response);
-          })
-          .catch(error => {
-            reject(error);
-          });
-      });
-    }
-  }
-);
 
 // Helper methods for making API requests
 const API = {
@@ -90,7 +30,7 @@ const API = {
         responseTime[url] = (endTime.getTime() - startTime.getTime()) / 1000;
       } catch (error) {
         // Only display error messages in the browser console
-        if (process.browser) {
+        if (typeof window !== "undefined") {
           console.error(error);
         }
 
@@ -176,7 +116,7 @@ const API = {
         }, 200);
       } catch (error) {
         // Only display error messages in the browser console
-        if (process.browser) {
+        if (typeof window !== "undefined") {
           console.error(error);
         }
 

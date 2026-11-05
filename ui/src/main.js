@@ -1,24 +1,11 @@
-import Vue from "vue";
-import { BootstrapVue, BootstrapVueIcons } from "bootstrap-vue";
-import HighchartsVue from "highcharts-vue";
-
-import App from "./App.vue";
-import router from "./router";
-import store from "./store";
-
-Vue.use(BootstrapVue);
-Vue.use(BootstrapVueIcons);
-Vue.use(HighchartsVue);
-
-//Localized number (comma, seperator, spaces, etc)
-Vue.filter("localize", n =>
-  Number(n).toLocaleString(undefined, { maximumFractionDigits: 8 })
-);
-
-Vue.config.productionTip = false;
-
-new Vue({
-  router,
-  store,
-  render: h => h(App)
-}).$mount("#app");
+import { createApp } from 'vue';
+import { createBootstrap, BAlert, BBadge, BButton, BCard, BCol, BDropdown, BDropdownItem, BForm, BFormInput, BFormSelect, BInputGroup, BModal, BOverlay, BProgress, BRow, BSpinner } from 'bootstrap-vue-next';
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css';
+import HighchartsVue from 'highcharts-vue';
+import App from './App.vue';
+import router from './router';
+import store from './store';
+const app = createApp(App);
+app.use(createBootstrap()).use(router).use(store).use(HighchartsVue);
+for (const [name, component] of Object.entries({BAlert, BBadge, BButton, BCard, BCol, BDropdown, BDropdownItem, BForm, BFormInput, BFormSelect, BInputGroup, BModal, BOverlay, BProgress, BRow, BSpinner})) app.component(name, component);
+app.mount('#app');

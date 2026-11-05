@@ -1,6 +1,6 @@
 <template>
   <div>
-    <transition name="loading" mode>
+    <transition name="loading">
       <div v-if="isIframe">
         <div
           class="d-flex flex-column align-items-center justify-content-center min-vh100 p-2"
@@ -20,7 +20,7 @@
       </div>
       <loading v-else-if="loading" :progress="loadingProgress"> </loading>
       <!-- component matched by the route will render here -->
-      <router-view v-else></router-view>
+      <router-view v-else v-slot="{ Component }"><component :is="Component" /></router-view>
     </transition>
   </div>
 </template>
@@ -111,7 +111,7 @@ export default {
       immediate: true
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener("resize", this.updateViewPortHeightCSS);
     window.clearInterval(this.loadingInterval);
   },

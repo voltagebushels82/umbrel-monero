@@ -1,15 +1,6 @@
-#!/opt/homebrew/bin/bash bash
-
-CORE_PORT=18080
-CORE_RPCPORT=18081
-
-arguments=""
-for env in "${!CORE_@}"
-do
-  value=${!env}
-  uppercase_flag=${env#CORE_}
-  lowercase_flag=${uppercase_flag,,}
-  arguments="${arguments} -${lowercase_flag,,}=${!env}"
-done
-echo $arguments
-# -port=18080 -rpcport=18081
+#!/bin/sh
+set -eu
+# Wait for the dashboard to create the shared configuration before first boot.
+config="${MONERO_CONF_FILE:-/home/monero/.bitmonero/bitmonero.conf}"
+until [ -s "$config" ]; do sleep 1; done
+exec /entrypoint.sh "--config-file=$config" "$@"

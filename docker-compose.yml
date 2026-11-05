@@ -1,92 +1,43 @@
-# Dockerfile defined for testing the monero-frontend app during development and testing
-# version: "3.7"
-
+# Local development. Ports are bound to loopback; use an authenticated Umbrel proxy for deployment.
 services:
-
-  # i2pd_daemon:
-  #   container_name: i2pd_daemon
-  #   image: purplei2p/i2pd:release-2.44.0@sha256:d154a599793c393cf9c91f8549ba7ece0bb40e5728e1813aa6dd4c210aa606f6
-  #   user: "1000:1000"
-  #   command: --sam.enabled=true --sam.address=0.0.0.0 --sam.port=7656 --loglevel=error
-  #   restart: on-failure
-  #   volumes:
-  #     - ${PWD}/data/i2pd:/home/i2pd/data
-  #   networks:
-  #     default:
-  #       ipv4_address: "10.21.1.2"
-  
-  tor_server:
-    container_name: tor_server
-    image: getumbrel/tor:0.4.7.8@sha256:2ace83f22501f58857fa9b403009f595137fa2e7986c4fda79d82a8119072b6a
-    user: "1000:1000"
-    restart: on-failure
-    entrypoint: /tor-entrypoint/tor-entrypoint.sh
-    volumes:
-      - ${PWD}/data/tor:/etc/tor
-      - ${PWD}/tor-entrypoint:/tor-entrypoint
-    environment:
-      HOME: "/tmp"
-    networks:
-      default:
-        ipv4_address: "10.21.1.3"
-
   monerod:
-    user: "1000:1000"
+    image: ghcr.io/sethforprivacy/simple-monerod:latest@sha256:465a9458f148d31748731cfb6bc1ab38289313dcb858a699838ab8d1b828578d
     restart: unless-stopped
     stop_grace_period: 1m
-    command: --rpc-bind-ip=0.0.0.0 --confirm-external-bind --rpc-bind-port=18081 --hide-my-port --prune-blockchain --enable-dns-blocklist --log-level=0
-    image: sethsimmons/simple-monerod:latest
-    ports:
-      - "18080:18080"
-      - "18081:18081"
-      - "18082:18082"
-    expose:
-      - "18080"
-      - "18081"
-      - "18082"
+    entrypoint: /monero-entrypoint.sh
+    command:
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18081
+      - --rpc-login=monero:monero
     volumes:
-      - ${PWD}/data/monero:/home/monero/.bitmonero
-    networks:
-      default:
-        ipv4_address: "10.21.1.4"
-        # ipv4_address: $APP_MONERO_IP
-
+      - monero-data:/home/monero/.bitmonero
+      - ./monero-entrypoint.sh:/monero-entrypoint.sh:ro
+    ports:
+      - '127.0.0.1:18080:18080'
+      - '127.0.0.1:18081:18081'
+      - '127.0.0.1:18082:18082'
+      - '127.0.0.1:18084:18084'
+      - '127.0.0.1:18089:18089'
   server:
-    image: deverick/monero-frontend:v2.0.4
+    build: .
     restart: on-failure
     ports:
-      - "8889:8889"
+      - '127.0.0.1:8889:8889'
+      - '127.0.0.1:18090:18090'
     volumes:
-      - ${PWD}/data/app:/data # volume to persist advanced settings json
-      - ${PWD}/data/monero:/monero/.monero # volume to persist umbrel-monero.conf and bitmonero.conf
+      - app-data:/data
+      - monero-data:/monero/.monero
     environment:
-      PORT: "8889"
-      MONERO_HOST: "monerod"
-      MONERO_P2P_PORT: 18080
-      MONERO_ONION_P2P_PORT: 18083
-      MONERO_RPC_PORT: 18081
-      MONERO_ZMQ_PORT: 18082 
-      MONERO_DEFAULT_NETWORK: "mainnet"
-      MONERO_RPC_USER: "monero"
-      MONERO_RPC_PASSWORD: "monero"
-      MONERO_RPC_HIDDEN_SERVICE: "somehiddenservice.onion"
-      MONERO_P2P_HIDDEN_SERVICE: "anotherhiddenservice.onion"
-      DEVICE_DOMAIN_NAME: "monero.local"
-      MONEROD_IP: "10.21.1.4"
-      TOR_PROXY_IP: "10.21.1.3"
-      TOR_PROXY_PORT: "9050"
-      TOR_PROXY_CONTROL_PORT: "9051"
-      TOR_PROXY_CONTROL_PASSWORD: "moneroisprivate"
-      I2P_DAEMON_IP: "10.21.1.2"
-      I2P_DAEMON_PORT: "7656"
-    networks:
-      default:
-        ipv4_address: "10.21.1.5"
-
-networks:
-    default:
-      name: advanced_settings_test_network
-      ipam:
-          driver: default
-          config:
-              - subnet: "10.21.0.0/16"
+      PORT: '8889'
+      MONERO_HOST: monerod
+      MONERO_RPC_PORT: '18081'
+      MONERO_RPC_USER: monero
+      MONERO_RPC_PASSWORD: monero
+      MONERO_TOR: 'false'
+      MONERO_RESTRICTED_RPC_USER: '${MONERO_RESTRICTED_RPC_USER:-monero}'
+      MONERO_RESTRICTED_RPC_PASSWORD: '${MONERO_RESTRICTED_RPC_PASSWORD:-}'
+      MONERO_RESTRICTED_GATEWAY_HOST: '0.0.0.0'
+      DEVICE_DOMAIN_NAME: localhost
+volumes:
+  monero-data:
+  app-data:

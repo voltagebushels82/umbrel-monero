@@ -4,6 +4,7 @@
 import logger from '../utils/logger.js';
 import fs from 'fs';
 import crypto from 'crypto';
+import path from 'node:path';
 
 const UINT32_BYTES = 4;
 
@@ -41,7 +42,8 @@ export async function readJsonFile(filePath) {
 
 // Writes a string to a file. Wraps fs.writeFile into a native promise
 // This is _not_ concurrency safe, so don't export it without making it like writeJsonFile
-export function writeFile(filePath, data, encoding) {
+export async function writeFile(filePath, data, encoding) {
+  await fs.promises.mkdir(path.dirname(filePath), {recursive: true});
   return new Promise((resolve, reject) =>
     fs.writeFile(filePath, data, encoding, (err) => {
       if (err) {
@@ -110,6 +112,7 @@ export function writePlainTextFile(filePath, string) {
             });
           });
         }
+        throw err;
       });
 }
 

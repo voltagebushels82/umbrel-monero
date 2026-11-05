@@ -2,19 +2,18 @@ import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
 import morgan from 'morgan';
-import bodyParser from 'body-parser';
 import cors from 'cors';
 
 import * as requestCorrelationMiddleware  from './middlewares/requestCorrelationId.js';
 import { camelCaseRequest as camelCaseReqMiddleware } from './middlewares/camelCaseRequest.js';
 import * as errorHandleMiddleware from './middlewares/errorHandling.js';
-import * as logger from './utils/logger.js';
+import logger from './utils/logger.js';
 import * as monerod from './routes/v1/monerod/info.js';
 import * as charts from './routes/v1/monerod/charts.js';
 import * as system from './routes/v1/monerod/system.js';
 import * as ping from './routes/ping.js';
 
-import { addAlias } from 'module-alias';
+
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -24,7 +23,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-addAlias('module-alias/register');
+
 dotenv.config();
 
 const environment = process.env.NODE_ENV;
@@ -32,8 +31,8 @@ const app = express();
 
 app.use(cors());
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(express.json({limit: "64kb"}));
+app.use(express.urlencoded({extended: false, limit: "64kb"}));
 app.use(requestCorrelationMiddleware.default);
 app.use(camelCaseReqMiddleware);
 

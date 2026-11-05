@@ -4,7 +4,13 @@ import * as diskLogic from '../../../logic/disk.js';
 import * as monerodLogic from '../../../logic/monerod.js';
 import * as safeHandler from '../../../utils/safeHandler.js';
 
+import { isValidAddress } from '../../../build/services/monerod.js';
 const router = express.Router();
+router.post('/validate-address', safeHandler.safeHandler(async (req, res) => {
+  const {address, network} = req.body;
+  const valid = typeof address === 'string' && address.length <= 106 && await isValidAddress(address, network);
+  res.json({valid});
+}));
 
 router.get('/monero-p2p-connection-details', safeHandler.safeHandler(async (req, res) => {
   const connectionDetails = systemLogic.getMoneroP2PConnectionDetails();
@@ -23,41 +29,28 @@ router.get('/monero-config', safeHandler.safeHandler(async (req, res) => {
   return res.json(moneroConfig);
 }));
 
-// updateJsonStore / generateMoneroConfig are all called through these routes below so that even if user closes the browser prematurely, the backend will complete the update.
-
+// Serialize the entire save/restart/rollback transaction, not just individual file writes.
+let pendingUpdate = Promise.resolve();
+function updateConfiguration(apply) {
+  const operation = pendingUpdate.then(async () => {
+    const previous = await diskLogic.getJsonStore();
+    try {
+      await apply();
+      if ((await monerodLogic.getStatus()).operational) await monerodLogic.stop();
+    } catch (error) {
+      await diskLogic.applyCustomMoneroConfig(previous, true);
+      throw error;
+    }
+  });
+  pendingUpdate = operation.catch(() => {});
+  return operation;
+}
 router.post('/update-monero-config', safeHandler.safeHandler(async (req, res) => {
-  // store old moneroConfig in memory to revert to in case of errors setting new config and restarting monerod
-  const oldMoneroConfig = await diskLogic.getJsonStore();
-  const newMoneroConfig = req.body.moneroConfig;
-
-  try {
-    await diskLogic.applyCustomMoneroConfig(newMoneroConfig, true);
-    await monerodLogic.stop();
-
-    res.json({success: true});
-  } catch (error) {
-    // revert everything to old config values
-    await diskLogic.applyCustomMoneroConfig(oldMoneroConfig, true);
-
-    res.json({success: false}); // show error to user in UI
-  }
+  await updateConfiguration(() => diskLogic.applyCustomMoneroConfig(req.body?.moneroConfig, true));
+  res.json({success: true});
 }));
-
 router.post('/restore-default-monero-config', safeHandler.safeHandler(async (req, res) => {
-  // store old moneroConfig in memory to revert to in case of errors setting new config and restarting monerod
-  const oldMoneroConfig = await diskLogic.getJsonStore();
-
-  try {
-    await diskLogic.applyDefaultMoneroConfig();
-    await monerodLogic.stop();
-
-    res.json({success: true});
-  } catch (error) {
-    // revert everything to old config values
-    await diskLogic.applyCustomMoneroConfig(oldMoneroConfig, true);
-
-    res.json({success: false}); // show error to user in UI
-  }
+  await updateConfiguration(() => diskLogic.applyDefaultMoneroConfig());
+  res.json({success: true});
 }));
-
 export default router;

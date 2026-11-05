@@ -47,6 +47,7 @@ const state = () => ({
     tor: 0,
     i2p: 0
   },
+  mining: {active: false, speed: 0, threads: 0, available: false},
   chartData: []
 });
 
@@ -87,6 +88,7 @@ const mutations = {
   },
 
   setP2PInfo(state, p2pInfo) {
+    state.p2p.onionPort = p2pInfo.onionPort;
     state.p2p.port = p2pInfo.port;
     state.p2p.localAddress = p2pInfo.localAddress;
     state.p2p.localConnectionString = p2pInfo.localConnectionString;
@@ -95,6 +97,10 @@ const mutations = {
   },
 
   setRpcInfo(state, rpcInfo) {
+    state.rpc.zmqPort = rpcInfo.zmqPort;
+    state.rpc.zmqPubPort = rpcInfo.zmqPubPort;
+    state.rpc.restrictedRpcuser = rpcInfo.restrictedRpcuser;
+    state.rpc.restrictedRpcpassword = rpcInfo.restrictedRpcpassword;
     state.rpc.rpcuser = rpcInfo.rpcuser;
     state.rpc.rpcpassword = rpcInfo.rpcpassword;
     state.rpc.port = rpcInfo.port;
@@ -115,6 +121,7 @@ const mutations = {
     state.peers.i2p = peers.i2p || 0;
   },
 
+  setMining(state, mining) { state.mining = mining; },
   setChartData(state, chartData) {
     state.chartData = chartData;
   }
@@ -122,30 +129,22 @@ const mutations = {
 
 // Functions to get data from the API
 const actions = {
+  async getMining({ commit }) {
+    const mining = await API.get(`${import.meta.env.VITE_API_BASE_URL || ""}/v1/monerod/info/mining`);
+    commit("setMining", mining ? {...mining, available: true} : {active: false, speed: 0, threads: 0, available: false});
+  },
   async getStatus({ commit, dispatch }) {
     const status = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/status`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/info/status`
     );
 
-    if (status.operational) {
-        // Add check for peers to ensure we have a targetheight before calling getSync dispatch
-        const peers = await API.get(
-          `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/connections`
-        );
-        if(peers.total >1){
-          commit("isOperational", status.operational);
-          await dispatch("getSync");
-        }else{
-          commit("isOperational", false);
-        }
-    }else{
-      commit("isOperational", status.operational);
-    }
+    commit("isOperational", Boolean(status && status.operational));
+    if (status && status.operational) await dispatch("getSync");
   },
 
   async getP2PInfo({ commit }) {
     const p2pInfo = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/system/monero-p2p-connection-details`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/system/monero-p2p-connection-details`
     );
 
     if (p2pInfo) {
@@ -155,7 +154,7 @@ const actions = {
 
   async getRpcInfo({ commit }) {
     const rpcInfo = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/system/monero-rpc-connection-details`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/system/monero-rpc-connection-details`
     );
 
     if (rpcInfo) {
@@ -165,7 +164,7 @@ const actions = {
 
   async getSync({ commit }) {
     const sync = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/sync`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/info/sync`
     );
     
     if (sync) {
@@ -193,11 +192,11 @@ const actions = {
     //TODO: Fetch only new blocks
     const latestFiveBlocks = await API.get(
       `${
-        process.env.VUE_APP_API_BASE_URL
+        (import.meta.env.VITE_API_BASE_URL || "")
       }/v1/monerod/info/blocks?from=${currentBlock - 3}&to=${currentBlock}`
     );
 
-    if (!latestFiveBlocks.blocks) {
+    if (!latestFiveBlocks || !latestFiveBlocks.blocks) {
       return;
     }
 
@@ -219,7 +218,7 @@ const actions = {
     // get last 180 blocks (~24 hours)
     const lastDaysBlocks = await API.get(
       `${
-        process.env.VUE_APP_API_BASE_URL
+        (import.meta.env.VITE_API_BASE_URL || "")
       }/v1/monerod/info/blocks?from=${currentBlock - 179}&to=${currentBlock}`
     );
 
@@ -260,7 +259,7 @@ const actions = {
 
   async getVersion({ commit }) {
     const version = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/version`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/info/version`
     );
 
     if (version) {
@@ -270,7 +269,7 @@ const actions = {
 
   async getPeers({ commit }) {
     const peers = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/connections`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/info/connections`
     );
 
     if (peers) {
@@ -280,7 +279,7 @@ const actions = {
 
   async getStats({ commit }) {
     const stats = await API.get(
-      `${process.env.VUE_APP_API_BASE_URL}/v1/monerod/info/stats`
+      `${(import.meta.env.VITE_API_BASE_URL || "")}/v1/monerod/info/stats`
     );
 
     if (stats) {
