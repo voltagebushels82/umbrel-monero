@@ -3,6 +3,12 @@
   <div :title="tooltip">
     <div
       class="toggle"
+      role="switch"
+      tabindex="0"
+      :aria-checked="on"
+      :aria-disabled="disabled"
+      @keydown.space.prevent="toggle"
+      @keydown.enter.prevent="toggle"
       :class="{
         'toggle-off': !on,
         'toggle-on': on,

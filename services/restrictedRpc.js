@@ -4,6 +4,7 @@ import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import auth from 'http-auth';
 import DigestClient from 'digest-fetch';
+import {Agent, fetch} from 'undici';
 
 // The upstream MUST be monerod's restricted listener, never its administrative RPC port.
 export function createRestrictedRpcGateway({username, password, upstream, upstreamUsername, upstreamPassword}) {
@@ -14,6 +15,7 @@ export function createRestrictedRpcGateway({username, password, upstream, upstre
   const hash = createHash('md5').update(`${username}:${realm}:${password}`).digest('hex');
   const digest = auth.digest({realm, qop: 'auth', file: () => `${username}:${realm}:${hash}`});
   const forward = digest.check(async (req, res) => {
+    const dispatcher = new Agent({connections: 1});
     try {
       const credentials = digest.parseAuthorization(req.headers.authorization || '');
       if (credentials?.uri !== req.url || credentials?.qop !== 'auth' || credentials?.realm !== realm) {
@@ -32,6 +34,13 @@ export function createRestrictedRpcGateway({username, password, upstream, upstre
       }
       // Per-request clients avoid sharing digest nonce counters between concurrent requests.
       const client = new DigestClient(upstreamUsername, upstreamPassword);
+      // Monerod binds a digest nonce to its TCP connection. Drain the challenge
+      // before retrying, and keep both requests on the same connection.
+      client.getClient = async () => async (url, options) => {
+        const response = await fetch(url, {...options, dispatcher});
+        if (response.status === 401) await response.arrayBuffer();
+        return response;
+      };
       const response = await client.fetch(target.href, {
         method: req.method,
         headers: {'content-type': req.headers['content-type'] || 'application/json'},
@@ -40,7 +49,7 @@ export function createRestrictedRpcGateway({username, password, upstream, upstre
       });
       // Never expose upstream authentication challenges or follow redirects with administrative credentials.
       if (response.status === 401 || response.status >= 300 && response.status < 400) {
-        await response.body?.cancel(); res.writeHead(502).end(); return;
+        if (!response.bodyUsed) await response.body?.cancel(); res.writeHead(502).end(); return;
       }
       res.writeHead(response.status, {'content-type': response.headers.get('content-type') || 'application/octet-stream'});
       if (response.body) await pipeline(Readable.fromWeb(response.body), res);
@@ -48,6 +57,8 @@ export function createRestrictedRpcGateway({username, password, upstream, upstre
     } catch {
       if (!res.headersSent) res.writeHead(502);
       res.end();
+    } finally {
+      await dispatcher.destroy();
     }
   });
   const server = http.createServer((req, res) => {

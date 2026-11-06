@@ -1,9 +1,60 @@
-# Local development. Ports are bound to loopback; use an authenticated Umbrel proxy for deployment.
+# Local equivalent of ../umbrel-apps/monero: dashboard, daemon, Tor and I2P.
+# Umbrel supplies app_proxy/authentication; local published ports use loopback.
 services:
+  init:
+    image: node:24-alpine
+    user: '0:0'
+    command: ['sh', '-c', 'chown 1000:1000 /tor /i2pd /monero /app-data && chmod 700 /tor']
+    volumes:
+      - tor-data:/tor
+      - i2pd-data:/i2pd
+      - monero-data:/monero
+      - app-data:/app-data
+
+  tor:
+    image: ghcr.io/getumbrel/tor:0.4.9.11@sha256:e382b8629c0dfef6ceb396b062622d4e4e955b19d6f16b883fd2c0723ad5671a
+    user: '1000:1000'
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    entrypoint: ['/usr/local/bin/tor', '-f', '/etc/tor/torrc']
+    volumes:
+      - ./docker/torrc:/etc/tor/torrc:ro
+      - tor-data:/data
+    ports:
+      - '127.0.0.1:9050:9050'
+    networks:
+      default:
+        ipv4_address: '10.21.21.180'
+
+  i2pd_daemon:
+    image: ghcr.io/purplei2p/i2pd:latest-release@sha256:f3ff7f0e501cc6baf383a5ca2a04659e0c9c8f8e9781e86aead2aa4decd27c9a
+    user: '1000:1000'
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    command: ['--conf=/etc/i2pd/i2pd.conf', '--tunconf=/etc/i2pd/tunnels.conf']
+    volumes:
+      - ./docker/i2pd.conf:/etc/i2pd/i2pd.conf:ro
+      - ./docker/i2pd-tunnels.conf:/etc/i2pd/tunnels.conf:ro
+      - i2pd-data:/home/i2pd/data
+    ports:
+      - '127.0.0.1:4447:4447'
+      - '127.0.0.1:7070:7070'
+    networks:
+      default:
+        ipv4_address: '10.21.21.181'
+
   monerod:
     image: ghcr.io/sethforprivacy/simple-monerod:latest@sha256:465a9458f148d31748731cfb6bc1ab38289313dcb858a699838ab8d1b828578d
+    user: '1000:1000'
     restart: unless-stopped
     stop_grace_period: 1m
+    depends_on:
+      init:
+        condition: service_completed_successfully
     entrypoint: /monero-entrypoint.sh
     command:
       - --rpc-bind-ip=0.0.0.0
@@ -18,26 +69,56 @@ services:
       - '127.0.0.1:18082:18082'
       - '127.0.0.1:18084:18084'
       - '127.0.0.1:18089:18089'
+    networks:
+      default:
+        ipv4_address: '10.21.21.179'
+
   server:
     build: .
     restart: on-failure
+    depends_on:
+      tor:
+        condition: service_started
+      i2pd_daemon:
+        condition: service_started
     ports:
-      - '127.0.0.1:8889:8889'
+      - '127.0.0.1:8889:9976'
       - '127.0.0.1:18090:18090'
     volumes:
       - app-data:/data
       - monero-data:/monero/.monero
+      - tor-data:/tor-data:ro
+      - i2pd-data:/i2pd-data:ro
     environment:
-      PORT: '8889'
-      MONERO_HOST: monerod
+      PORT: '9976'
+      MONERO_HOST: '10.21.21.179'
       MONERO_RPC_PORT: '18081'
       MONERO_RPC_USER: monero
       MONERO_RPC_PASSWORD: monero
-      MONERO_TOR: 'false'
+      MONERO_TOR: 'true'
+      MONERO_I2P: 'true'
+      TOR_PROXY_IP: '10.21.21.180'
+      TOR_PROXY_PORT: '9050'
+      I2P_DAEMON_IP: '10.21.21.181'
+      I2P_DAEMON_PORT: '4447'
+      TOR_HIDDEN_SERVICE_DIR: /tor-data
+      I2P_P2P_KEY_FILE: /i2pd-data/monero-p2p.dat
       MONERO_RESTRICTED_RPC_USER: '${MONERO_RESTRICTED_RPC_USER:-monero}'
       MONERO_RESTRICTED_RPC_PASSWORD: '${MONERO_RESTRICTED_RPC_PASSWORD:-}'
       MONERO_RESTRICTED_GATEWAY_HOST: '0.0.0.0'
       DEVICE_DOMAIN_NAME: localhost
+    networks:
+      default:
+        ipv4_address: '10.21.22.178'
+
 volumes:
   monero-data:
   app-data:
+  tor-data:
+  i2pd-data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: '10.21.0.0/16'

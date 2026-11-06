@@ -11,6 +11,9 @@ export function getMoneroP2PConnectionDetails() {
   const localConnectionString = `${localAddress}:${port}`;
 
   return {
+    i2pAddress: constants.MONERO_I2P_HIDDEN_SERVICE,
+    i2pPort: constants.MONERO_I2P_P2P_PORT,
+    i2pConnectionString: constants.MONERO_I2P_HIDDEN_SERVICE,
     torAddress,
     port,
     onionPort,

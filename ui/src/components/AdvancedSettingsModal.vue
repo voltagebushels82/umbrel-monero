@@ -45,7 +45,7 @@
           <hr class="advanced-settings-divider" />
           <div class="d-flex justify-content-between align-items-center">
             <label for="tor-only">Route all outgoing P2P traffic through Tor</label>
-            <toggle-switch id="tor-only" :on="settings.torOnly" @toggle="status => { settings.torOnly = status; if (status) settings.tor = true; }" />
+            <toggle-switch id="tor-only" :on="settings.torOnly" @toggle="status => { settings.torOnly = status; if (status) { settings.tor = true; settings.i2p = false; } }" />
           </div>
           <small class="text-muted">Disables direct incoming clearnet peers, UPnP and DNS lookups. Requires a working Tor SOCKS proxy. The Tor peers option alone only proxies Tor connections and transactions.</small>
           <hr class="advanced-settings-divider" />
@@ -55,11 +55,10 @@
           </div>
           <small class="text-muted">Connection details show separate ZMQ RPC and publish ports. Publish the ports in your deployment before connecting P2Pool.</small>
           <hr class="advanced-settings-divider" />
-          <!-- 
           <div>
             <div class="d-flex justify-content-between align-items-center">
               <div class="w-75">
-                <label class="mb-0" for="I2P">
+                <label class="mb-0" for="i2p">
                   <p class="fw-bold mb-0">
                     Outgoing Connections to I2P Peers
                   </p>
@@ -67,10 +66,10 @@
               </div>
               <div>
                 <toggle-switch
-                  id="I2P"
+                  id="i2p"
                   class="align-self-center"
                   :on="settings.i2p"
-                  @toggle="status => (settings.i2p = status)"
+                  @toggle="status => { settings.i2p = status; if (status) settings.torOnly = false; }"
                 ></toggle-switch>
               </div>
             </div>
@@ -79,7 +78,7 @@
             </small>
           </div>
 
-          <hr class="advanced-settings-divider" /> -->
+          <hr class="advanced-settings-divider" />
 
           <div>
             <div class="d-flex justify-content-between align-items-center">
@@ -537,9 +536,13 @@ export default {
     async submit() {
       this.showOutgoingConnectionsError = false;
       this.showMiningError = false;
-      const addressVerification = !this.settings.mining || await this.isValidAddress(
-        this.settings.moneroAddress
-      );
+      let addressVerification = !this.settings.mining;
+      try {
+        if (this.settings.mining) addressVerification = await this.isValidAddress(this.settings.moneroAddress);
+      } catch {
+        this.showMiningError = true;
+        return;
+      }
       if (!this.isOutgoingConnectionsValid())
         return (this.showOutgoingConnectionsError = true);
       //Here we need to verify the monero address is valid
@@ -557,6 +560,7 @@ export default {
     setSettings() {
       // deep clone moneroConfig in order to properly reset state if user hides modal instead of clicking the save and restart button
       this.settings = JSON.parse(JSON.stringify(this.moneroConfig));
+      if (!this.settings.minercpuTarget) this.settings.minercpuTarget = 40;
     },
     isOutgoingConnectionsValid() {
       return !this.settings.torOnly || this.settings.tor;

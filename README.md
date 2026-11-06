@@ -24,125 +24,96 @@
   </p>
 </p>
 
-### Development
+## Local development
 
-## 1. Clone the Repository
-
-Open a terminal and clone the Monero node repository:
+Use Node.js 24 LTS and npm. The UI uses Vue 3, Bootstrap 5 and Vite; the API uses Express 5 and TypeScript 7.
 
 ```sh
-git clone https://github.com/your-repo/monero-node-for-umbrel.git
-
-cd monero-node-for-umbrel
+npm ci
+npm ci --prefix ui
+cp .env.example .env
+npm run build
+npm run start:all:dev
 ```
 
-## 2. Modify const.js for Local Development
+Open http://localhost:5173. Vite proxies `/ping` and `/v1` to the API on port 8889. Set `MONERO_HOST`, `MONERO_RPC_PORT`, `MONERO_RPC_USER` and `MONERO_RPC_PASSWORD` in `.env` for your daemon. Re-run `npm run build` after changing TypeScript. The API stays available while the daemon is offline so settings can be repaired.
 
-Locate the `const.js` file in your project directory and update the file paths as described. Replace the existing file paths with the following:
-
-```js
-const JSON_STORE_FILE = process.env.JSON_STORE_FILE || "./data/monero-config.json";
-
-const MONERO_CONF_FILEPATH = process.env MONERO_CONF_FILE || "./monero/.monero/bitmonero.conf";
-```
-
-## 3. Create Necessary Directories and Files
-
-Make sure the directories and files specified in the paths exist. If not, create them:
+For a production build:
 
 ```sh
-mkdir -p ./data
-touch ./data/monero-config.json
-
-mkdir -p ./monero/.monero
-touch ./monero/.monero/bitmonero.conf
+npm run build
+npm run build:ui
+npm start
 ```
 
-## 4. Install Dependencies
+Open http://localhost:8889. Do not create empty JSON/config files: the app creates them with valid defaults. Override paths using `JSON_STORE_FILE` and `MONERO_CONF_FILE`; do not edit source constants.
 
-Ensure you have Node.js and npm installed. Then install the necessary npm packages:
+## Local containers
 
-`npm install`
+```sh
+docker compose up --build -d
+```
 
-## 5. Set Environment Variables and Run the App
+This builds the current checkout and starts the dashboard, monerod, Tor and i2pd with persistent named volumes. The service addresses, dashboard port 9976 inside Docker, and Tor image follow `../umbrel-apps/monero`. The local dashboard is published at http://localhost:8889. Local RPC credentials are `monero:monero`; all published ports bind to loopback. Tor and I2P are enabled by default, alongside clearnet blockchain synchronization.
 
-Set the environment variables and run the app. Replace your-monerod-ip with the IP address of your Monero daemon. For local testing, you can use `127.0.0.1` if you're running the Monero daemon locally.
+Tor creates persistent RPC and P2P onion identities. i2pd creates a persistent Monero P2P destination and exposes SOCKS on port 4447, not SAM port 7656. The dashboard loads these real identities before generating the daemon configuration. A one-shot init service sets volume permissions for UID 1000; monerod, Tor and i2pd run as that user. The daemon waits for its config on first boot. Stop with `docker compose down`; volumes are retained. Normal startup downloads the blockchain.
 
-`MONERO_HOST=your-monerod-ip MONEROD_RPC_PORT=18081 npm run start:all:dev`
+The local network uses the same `10.21.0.0/16` address layout as the Umbrel package; do not run conflicting copies of that subnet simultaneously. Tor SOCKS (9050), I2P SOCKS (4447), and the I2P console (7070) are available only on host loopback for development checks. I2P can take several minutes to build usable tunnels. Incoming Tor/I2P peers require enabling **Incoming Connections** in Advanced Settings. Tor P2P forwards 18083 to the daemon on 18083; I2P P2P forwards to 18087. These are separate from ZMQ.
 
-Alternatively, if running the Monero daemon on your local machine, use:
+The Compose files are local examples, not Umbrel app-store manifests. For Umbrel, retain its authentication proxy, real RPC credentials, Tor services, host port mappings and persistent mounts. The dashboard has privileged settings and connection information and must remain behind that proxy.
 
-`MONERO_HOST=127.0.0.1 MONEROD_RPC_PORT=18081 npm run start:all:dev`
+## Settings and connections
 
-# Troubleshooting Guide
+- **Networks:** mainnet, testnet and stagenet. Saved legacy `test` settings migrate to `testnet`. Existing malformed anonymous-inbound lines containing `undefined` are regenerated on startup from saved settings.
+- **Incoming peers:** Tor hidden services require a valid v3 onion hostname and the `MONERO_ONION_P2P_PORT` mapping (default 18083). The daemon binds to `0.0.0.0`, not a Docker DNS hostname. If incoming peers are disabled, UPnP and incoming clearnet peers are disabled too.
+- **Tor:** `MONERO_TOR=false` disables Tor in default settings; on Umbrel the default is enabled. Configure `TOR_PROXY_IP` and `TOR_PROXY_PORT` before enabling it. The Tor peers switch only routes Tor peers/transactions. **Route all outgoing P2P traffic through Tor** also sets the global proxy, disables direct incoming clearnet peers and daemon DNS lookups. This is daemon configuration, not a host-wide firewall; packet-level leak testing is still required for a deployment that depends on network isolation. The I2P switch enables its SOCKS proxy for I2P peers and transaction relay. Its generated P2P address appears in the Connect dialog. Tor-only and I2P routing are mutually exclusive in this UI.
+- **Mining:** the dashboard shows local activity, H/s and thread count separately from network hashrate. Reward addresses are validated against the selected network. Background mining may remain idle according to daemon policy.
+- **ZMQ/P2Pool:** enable ZMQ in Advanced Settings. ZMQ RPC defaults to 18082; ZMQ publish defaults to **18084**, distinct from Tor P2P port 18083. P2Pool needs the publish port. The connection dialog shows both; deployments must map them separately. ZMQ RPC is restricted but unauthenticated; expose these ports only to trusted clients.
 
-## Cannot find module `umbrel-monero-master/build/services/monerod.js`
+## Separate restricted-RPC credentials
 
-This error suggests that the module `monerod.js` is not found in the expected location.
+Monerod's native full and restricted listeners share `rpc-login`. This app provides an optional digest-authentication gateway with an independent wallet password. It forwards JSON and binary wallet requests only to the configured **restricted** listener; the daemon continues to enforce restricted methods.
 
-### Solution
+Set `MONERO_RESTRICTED_RPC_PASSWORD` to a new password and optionally `MONERO_RESTRICTED_RPC_USER` (default `monero`). The gateway uses port 18090 by default (`MONERO_RESTRICTED_GATEWAY_PORT`), with upstream port 18089 (`MONERO_RESTRICTED_RPC_PORT`). Connection details automatically use the separate credentials and gateway port for restricted mode. Native RPC credentials remain `MONERO_RPC_USER`/`MONERO_RPC_PASSWORD`.
 
-1. **Build the Project**
+The gateway binds to 127.0.0.1 by default. Containers may set `MONERO_RESTRICTED_GATEWAY_HOST=0.0.0.0` and map its port; the local Compose example binds the host side to loopback. Use a trusted network, Tor, or TLS for remote access. Never point the gateway at the unrestricted listener. Restrict access to the native listeners so wallet users cannot bypass the gateway. Existing Umbrel manifests need an additional gateway port mapping to use this feature.
 
-   Make sure you have built the project correctly. Run the build command if necessary:
+## Verification
 
-`   npm run build`
+```sh
+npm run lint
+npm test
+npm run build:ui
+npx playwright install chromium
+npm run test:ui
+npm audit
+npm audit --prefix ui
+docker build -t umbrel-monero:local .
+```
 
-This command should generate the build directory with all necessary artifacts.
+API tests use an HTTP daemon fixture and temporary files. Browser tests exercise the dashboard, chart, dialogs, testnet selection and settings submission. `npm run test:docker:ui` runs the browser against the Docker deployment, including daemon restarts and persistence. It requires `MONERO_RESTRICTED_RPC_USER=wallet` and `MONERO_RESTRICTED_RPC_PASSWORD=local-e2e-wallet-only` in the test deployment and runner environment; use disposable volumes.
 
-## "vue-cli-service: not found"
+For real Tor/I2P verification, start a disposable stack with bounded download bandwidth and DNS checkpoint lookups disabled:
 
-This error indicates that the `vue-cli-service` command is not available, which is typically used to serve Vue.js applications during development.
-Solution
+```sh
+docker compose -p codex-monero-anon -f docker-compose.yml -f docker-compose.browser.yml up --build -d
+```
 
-### Install Vue CLI
+Open the dashboard and enable **Incoming Connections**, keeping Tor and I2P enabled. Then run:
 
-Ensure that you have Vue CLI installed globally. If not, install it using npm:
+```sh
+npm run test:anonymity
+```
 
-`npm install -g @vue/cli`
+Set `E2E_DOCKER_SUDO=1` if Docker requires passwordless sudo. The test verifies Tor exit routing, authenticated onion RPC, and completed Tor/I2P Monero handshakes using an independent probe daemon and a second I2P router. The test removes its probe containers afterward. It requires curl, internet access, and time for I2P tunnels to form. A listening proxy alone does not count as a successful test. To remove the disposable stack and its data:
 
-### Production
+```sh
+docker compose -p codex-monero-anon down --volumes
+```
 
-- npm run start
+## Existing data and upgrades
 
-#### Docker
-
-To build:
-
-- docker buildx build --platform linux/arm64 -f ./Dockerfile --tag umbrel-monero/monero-frontend:v1.0.0 --load .
-- docker-compose up
-
-## Getting started
-
-This app can be installed in one click via the Umbrel Community App Store.
-
-## Copying blockchain from another node
-
-1. SSH into Umbrel node and input password : `ssh umbrel@umbrel.local`
-2. Stop Monero app: `sudo /home/umbrel/umbrel/scripts/app stop meganero-monero`
-3. Archive/Delete contents of `/home/umbrel/umbrel/app-data/meganero-monero/data/monero/lmdb`, i.e.: `rm data.mdb lock.mdb`
-4. From device with copy of Monero blockchain, go to the data directory for the monero chain then copy the contents to the lmdb directory:
-   `scp -r . umbrel@umbrel.local:/home/umbrel/umbrel/app-data/meganero-monero/data/monero/lmdb`
-5. Once you're done moving files over, start up the app again
-   `sudo /home/umbrel/umbrel/scripts/app start meganero-monero`
-
-## Updating
-
-1. `sudo ./scripts/app stop meganero-monero`
-2. `sudo docker container prune`
-3. `docker images`
-4. Remove Old Image
-   1. **Remove Specific Docker Image:**
-      1. To remove a specific image, you can use:
-         `docker rmi [IMAGE ID or REPOSITORY:TAG]`
-         For instance, if the image ID is `abcd1234`, you can remove it using:
-         `docker rmi abcd1234`
-         Or if the image's repository and tag are `my_image:latest`, you can remove it using:
-         `docker rmi my_image:latest`
-   2. **Remove All Docker Images:**
-      1. `sudo docker image prune -a`
-5. `sudo docker pull deverickapollo/umbrel-monero:dev-refactor-settings` - Make sure to set the tag to the version you want to pull. We recommend using the master branch.
-6. `sudo ./scripts/app start meganero-monero`
+Back up the app's configuration and blockchain data before replacing a deployment. Keep its persistent mounts and use the deployment's normal image update mechanism. Do not delete blockchain files or prune unrelated Docker resources to resolve a configuration error. The startup repair addresses the known malformed incoming-port and legacy-network settings; it does not repair a corrupt blockchain database.
 
 ## Contributing
 

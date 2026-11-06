@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import { createBootstrap, BAlert, BBadge, BButton, BCard, BCol, BDropdown, BDropdownItem, BForm, BFormInput, BFormSelect, BInputGroup, BModal, BOverlay, BProgress, BRow, BSpinner } from 'bootstrap-vue-next';
 import 'bootstrap-vue-next/dist/bootstrap-vue-next.css';
 import HighchartsVue from 'highcharts-vue';
+import 'highcharts/modules/accessibility';
 import App from './App.vue';
 import router from './router';
 import store from './store';

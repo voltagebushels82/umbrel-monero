@@ -96,12 +96,12 @@ export async function getTransaction(txHash: string): Promise<{result: MoneroTx}
   }
 }
 
-export function getSyncPercentage(height: number, targetHeight: number): number{
+export function getSyncPercentage(height: number, targetHeight: number, synchronized = true): number{
   if (targetHeight > height && targetHeight !== 0) {
     // eslint-disable-next-line no-magic-numbers
-    return Number((height / targetHeight).toFixed(4));
+    return Math.min(Number((height / targetHeight).toFixed(4)), synchronized ? 1 : 0.9999);
   }
-  return 1;
+  return synchronized ? 1 : 0;
 }
 
 export async function getIsConnected() {
@@ -134,6 +134,7 @@ export async function getBlockChainInfo(): Promise<{result: infoInterface}>{
       verificationprogress: getSyncPercentage(
           infoState.height,
           infoState.targetHeight,
+          infoState.isSynchronized,
       ),
       pruned: true, // TODO implement after monero-js implements
     };

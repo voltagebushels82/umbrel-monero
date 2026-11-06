@@ -402,7 +402,7 @@ export default {
 
 //animations
 
-.blockchain-enter {
+.blockchain-enter-from {
   opacity: 0;
   transform: translateY(2rem);
   .blockchain-block-icon {
@@ -440,7 +440,7 @@ export default {
     }
   }
 }
-.blockchain-leave {
+.blockchain-leave-from {
   opacity: 1;
 }
 .blockchain-leave-to {

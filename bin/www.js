@@ -43,8 +43,12 @@ async function createConfFilesAndRestartMonerod() {
   console.log('bitmonero.conf does not exist, creating config files with DEFAULT values!');
 
   try{
+    const wasRunning = (await monerodLogic.getStatus()).operational;
     const config = await diskLogic.getJsonStore();
     await diskLogic.applyCustomMoneroConfig(config, true);
+    // A daemon waiting for this new file will start with the right settings.
+    // Only restart an existing daemon that was running before the file existed.
+    if (wasRunning) await monerodLogic.stop();
   } catch (error) {
     console.log(error);
     return;
@@ -58,29 +62,6 @@ async function createConfFilesAndRestartMonerod() {
     console.log('bitmonero.conf now exists');
   }
   
-  const MAX_TRIES = 10;
-  let tries = 0;
-  
-  while (tries < MAX_TRIES) {
-    const status = await monerodLogic.getStatus();
-    if (status.operational){
-      try {
-        await monerodLogic.stop();
-        console.log('Monerod stopped');
-        break;
-      } catch (error) {
-        console.log(`Attempt ${tries + 1} to stop monerod failed:`, error);
-
-      }
-    }else{
-      console.log(`Monerod is not connected, retrying in ${2 ** tries} seconds...`);
-    }
-    tries++;
-    await new Promise((resolve) => setTimeout(resolve, 2 ** tries * 1000));
-  }
-  if (tries === MAX_TRIES) {
-    console.log('Max attempts to stop monerod reached, giving up.');
-  }
 }
 
 /**

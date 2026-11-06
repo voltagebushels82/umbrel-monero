@@ -25,8 +25,10 @@ export async function getConnectionsCount() {
       inBoundConnections++;
     }
 
-    if (peer.type === 3 || peer.addrLocal?.includes('.onion')) torConnections++;
-    else if (peer.type === 4 || peer.addrLocal?.includes('.i2p')) i2pConnections++;
+    // monerod's wire address_type is I2P=3, Tor=4. The SDK's ConnectionType
+    // enum currently reverses these values; getPeers() passes the raw value on.
+    if (peer.type === 4 || peer.addrLocal?.includes('.onion')) torConnections++;
+    else if (peer.type === 3 || peer.addrLocal?.includes('.i2p')) i2pConnections++;
     else clearnetConnections++;
 
   });
@@ -165,7 +167,8 @@ export async function getBlock(hash) {
 const memoizedGetFormattedBlock = () => {
   const cache = {};
 
-  return async (blockHeight) => {
+  return async (blockHeight, chainId) => {
+    const cacheKey = `${chainId}:${blockHeight}`;
     // cache cleanup
     // 6 blocks/hr * 24 hrs/day * 7 days = 1008 blocks over 7 days
     // plus some wiggle room in case weird difficulty adjustment or period of faster blocks
@@ -176,8 +179,8 @@ const memoizedGetFormattedBlock = () => {
       delete cache[cacheItemToDelete];
     }
 
-    if (blockHeight in cache) {
-      return cache[blockHeight];
+    if (cacheKey in cache) {
+      return cache[cacheKey];
     } else {
       let blockHash;
       try {
@@ -191,7 +194,7 @@ const memoizedGetFormattedBlock = () => {
 
       const {result: block} = await monerodService.getBlock(blockHash);
 
-      cache[blockHeight] = {
+      cache[cacheKey] = {
         hash: block.hash,
         height: block.height,
         numTransactions: block.numTxs,
@@ -201,7 +204,7 @@ const memoizedGetFormattedBlock = () => {
         previousblockhash: block.previousblockhash,
       };
 
-      return cache[blockHeight];
+      return cache[cacheKey];
     }
   };
 };
@@ -231,6 +234,8 @@ export async function getBlockRangeTransactionChunks(fromHeight, toHeight, block
 export async function getBlocks(fromHeight, toHeight) {
   await monerodService.isReady();
   const blocks = [];
+  // Height alone is ambiguous after switching between mainnet/testnet/stagenet.
+  const {result: chainId} = await monerodService.getBlockHash(0);
 
   // loop from 'to height' till 'from Height'
   for (let currentHeight = toHeight - 1; currentHeight >= fromHeight; currentHeight--) {
@@ -240,7 +245,7 @@ export async function getBlocks(fromHeight, toHeight) {
     }
 
     try {
-      const formattedBlock = await initializedMemoizedGetFormattedBlock(currentHeight);
+      const formattedBlock = await initializedMemoizedGetFormattedBlock(currentHeight, chainId);
       blocks.push(formattedBlock);
     } catch (e) {
       console.error('Error memoizing formatted blocks');

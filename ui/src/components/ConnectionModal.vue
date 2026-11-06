@@ -123,7 +123,7 @@
             </b-row>
           </div>
           <!-- P2P Section -->
-          <div v-if="chosenMode === 'p2pLocal' || chosenMode === 'p2pTor'">
+          <div v-if="chosenMode === 'p2pLocal' || chosenMode === 'p2pTor' || chosenMode === 'p2pI2p'">
             <label class="mb-1 d-block"
               ><small class="fw-bold"
                 >Monero P2P Address (Host)</small
@@ -131,11 +131,11 @@
             >
             <div>
               <input-copy
-                v-if="p2p.torAddress || p2p.localAddress"
+                v-if="p2p.torAddress || p2p.localAddress || p2p.i2pAddress"
                 class="mb-2"
                 size="sm"
                 :value="
-                  chosenMode === 'p2pTor' ? p2p.torAddress : p2p.localAddress
+                  chosenMode === 'p2pTor' ? p2p.torAddress : chosenMode === 'p2pI2p' ? p2p.i2pAddress : p2p.localAddress
                 "
               ></input-copy>
               <span
@@ -144,6 +144,7 @@
                 v-else
               ></span>
             </div>
+            <template v-if="chosenMode !== 'p2pI2p'">
             <label class="mb-1 d-block"
               ><small class="fw-bold">Monero P2P Port</small></label
             >
@@ -155,6 +156,7 @@
               style="width: 100%;"
               v-else
             ></span>
+            </template>
           </div>
         </div>
       </div>
@@ -180,15 +182,19 @@ import InputCopy from "@/components/Utility/InputCopy";
 export default {
   data() {
     return {
-      chosenMode: "rpcTor",
+      chosenMode: "rpcLocal",
       modes: [
         { value: "rpcTor", text: "RPC (Tor)" },
         { value: "rpcLocal", text: "RPC (IP - Full Access)" },
         { value: "rpcRestricted", text: "RPC (IP - Restricted Access)" },
         { value: "p2pTor", text: "P2P (Tor)" },
+        { value: "p2pI2p", text: "P2P (I2P)" },
         { value: "p2pLocal", text: "P2P (Local Network)" }
       ]
     };
+  },
+  created() {
+    if (this.rpc.torAddress) this.chosenMode = "rpcTor";
   },
   computed: {
     ...mapState({
@@ -196,6 +202,7 @@ export default {
       p2p: state => state.monero.p2p
     }),
     chosenConnectionString() {
+      if (this.chosenMode === "p2pI2p") return this.p2p.i2pConnectionString || "";
       if (this.chosenMode === "rpcTor") {
         return this.rpc.torConnectionString;
       }

@@ -7,7 +7,7 @@ import * as safeHandler from '../../../utils/safeHandler.js';
 import { isValidAddress } from '../../../build/services/monerod.js';
 const router = express.Router();
 router.post('/validate-address', safeHandler.safeHandler(async (req, res) => {
-  const {address, network} = req.body;
+  const {address, network} = req.body || {};
   const valid = typeof address === 'string' && address.length <= 106 && await isValidAddress(address, network);
   res.json({valid});
 }));

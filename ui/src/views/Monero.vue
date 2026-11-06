@@ -135,7 +135,7 @@
           <div class>
             <div class="px-3 px-lg-4 mb-5">
               <div class="w-100 d-flex justify-content-between mb-2">
-                <span class="align-self-end">Synchronized</span>
+                <span class="align-self-end">{{ syncPercent === 100 ? 'Synchronized' : 'Synchronizing' }}</span>
                 <h3 class="fw-normal mb-0">
                   <span v-if="syncPercent !== -1">
                     {{ syncPercent }}
@@ -228,7 +228,7 @@
       </b-col>
     </b-row>
 
-    <b-modal v-model="showConnectModal" id="connect-modal" size="lg" centered hide-footer>
+    <b-modal v-model="showConnectModal" id="connect-modal" size="lg" centered no-footer>
       <connection-modal></connection-modal>
     </b-modal>
 
@@ -236,7 +236,7 @@
       v-model="showSettingsModal" id="advanced-settings-modal"
       size="lg"
       centered
-      hide-footer
+      no-footer
       scrollable
     >
       <advanced-settings-modal

@@ -1,0 +1,43 @@
+# Disposable, independent clients for verifying real Tor/I2P Monero handshakes.
+services:
+  i2p_client:
+    image: ghcr.io/purplei2p/i2pd:latest-release@sha256:f3ff7f0e501cc6baf383a5ca2a04659e0c9c8f8e9781e86aead2aa4decd27c9a
+    user: '1000:1000'
+    command: ['--conf=/etc/i2pd/i2pd.conf', '--tunconf=/dev/null']
+    volumes:
+      - ./docker/i2pd.conf:/etc/i2pd/i2pd.conf:ro
+    tmpfs:
+      - /home/i2pd/data:uid=1000,gid=1000,mode=0700
+    ports:
+      - '127.0.0.1:7071:7070'
+    networks:
+      default:
+        ipv4_address: '10.21.21.183'
+  probe:
+    image: ghcr.io/sethforprivacy/simple-monerod:latest@sha256:465a9458f148d31748731cfb6bc1ab38289313dcb858a699838ab8d1b828578d
+    user: '1000:1000'
+    depends_on: [i2p_client, monerod]
+    stop_grace_period: 10s
+    tmpfs:
+      - /home/monero/.bitmonero:uid=1000,gid=1000,mode=0700
+    command:
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18091
+      - --rpc-login=probe:probe
+      - --confirm-external-bind
+      - --p2p-bind-port=18088
+      - --in-peers=0
+      - --out-peers=2
+      - --hide-my-port
+      - --no-zmq
+      - --disable-dns-checkpoints
+      - --check-updates=disabled
+      - --tx-proxy=tor,10.21.21.180:9050,2
+      - --tx-proxy=i2p,10.21.21.183:4447,2
+      - --add-exclusive-node=${TEST_TOR_P2P:?Set the generated Tor P2P hostname}:18083
+      - --add-exclusive-node=${TEST_I2P_P2P:?Set the generated I2P P2P hostname}
+    ports:
+      - '127.0.0.1:18091:18091'
+    networks:
+      default:
+        ipv4_address: '10.21.21.182'

@@ -10,13 +10,18 @@ const realm = 'upstream';
 const hash = createHash('md5').update('admin:upstream:private-secret').digest('hex');
 const digest = auth.digest({realm, file: () => `admin:${realm}:${hash}`});
 let upstreamCalls = 0;
-const upstream = http.createServer(digest.check(async (req, res) => {
+const upstreamRequests = [];
+const upstreamHandler = digest.check(async (req, res) => {
   upstreamCalls++;
   if (req.url === '/stop_daemon') {res.writeHead(403).end('restricted');return;}
   const chunks = [];for await (const chunk of req) chunks.push(chunk);
   res.setHeader('content-type', 'application/octet-stream');
   res.end(Buffer.concat(chunks));
-}));
+});
+const upstream = http.createServer((req, res) => {
+  upstreamRequests.push({url: req.url, socket: req.socket});
+  upstreamHandler(req, res);
+});
 upstream.listen(0, '127.0.0.1');await once(upstream, 'listening');
 const gateway = createRestrictedRpcGateway({username: 'wallet', password: 'wallet-secret', upstream: `http://127.0.0.1:${upstream.address().port}`, upstreamUsername: 'admin', upstreamPassword: 'private-secret'});
 gateway.listen(0, '127.0.0.1');await once(gateway, 'listening');
@@ -34,6 +39,9 @@ test('gateway authenticates upstream separately and preserves binary wallet requ
   const response = await client.fetch(base + '/getblocks.bin', {method: 'POST', body: payload});
   assert.equal(response.status, 200);
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), payload);
+  const handshake = upstreamRequests.filter(request => request.url === "/getblocks.bin");
+  assert.equal(handshake.length, 2);
+  assert.equal(handshake[0].socket, handshake[1].socket, "digest challenge and retry must use the same TCP connection");
 });
 test('gateway preserves upstream restricted-method rejection', async () => {
   const client = new DigestClient('wallet', 'wallet-secret');

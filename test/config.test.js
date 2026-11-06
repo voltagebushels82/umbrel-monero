@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 const dir = await mkdtemp(path.join(os.tmpdir(), 'monero-config-test-'));
 Object.assign(process.env, {JSON_STORE_FILE: path.join(dir, 'settings.json'), MONERO_CONF_FILE: path.join(dir, 'monero.conf'), TOR_PROXY_IP: '127.0.0.1', TOR_PROXY_PORT: '9050', MONERO_P2P_HIDDEN_SERVICE: 'a'.repeat(56) + '.onion'});
+Object.assign(process.env, {I2P_DAEMON_IP: '127.0.0.1', I2P_DAEMON_PORT: '4447', MONERO_I2P_HIDDEN_SERVICE: 'b'.repeat(52) + '.b32.i2p'});
+Object.assign(process.env, {MONERO_TOR: 'true', MONERO_I2P: 'false', MONERO_DEFAULT_NETWORK: 'mainnet'});
 const {normalizeSettings, settingsToMultilineConfString: config, applyCustomMoneroConfig, getJsonStore} = await import('../logic/disk.js');
 after(() => rm(dir, {recursive: true, force: true}));
 
@@ -34,6 +36,14 @@ test('ZMQ RPC and P2Pool publishing are distinct from Tor', () => {
   assert.match(config({zmq: true}), /^zmq-pub=tcp:\/\/0\.0\.0\.0:18084$/m);
   assert.match(config({zmq: true}), /^zmq-rpc-bind-port=18082$/m);
   assert.match(config({zmq: false}), /^no-zmq=1$/m);
+});
+test('I2P uses SOCKS and forwards its persistent destination to a distinct inbound port', () => {
+  const output = config({i2p: true, incomingConnections: true});
+  assert.match(output, /^tx-proxy=i2p,127\.0\.0\.1:4447$/m);
+  assert.match(output, /^anonymous-inbound=b{52}\.b32\.i2p,0\.0\.0\.0:18087,25$/m);
+  assert.doesNotMatch(output, /7656/);
+  assert.doesNotMatch(config({i2p: false}), /tx-proxy=i2p|b32\.i2p/);
+  assert.throws(() => config({i2p: true, torOnly: true}), /Tor-only/);
 });
 test('invalid settings and injected config lines are rejected', () => {
   for (const input of [{network: 'invalid'}, {mining: 'true'}, {mining: true, minercpuTarget: 101}, {dbSyncMode: 'fast\nfoo=1'}, {moneroAddress: 'address\nstart-mining=other'}]) assert.throws(() => normalizeSettings(input));

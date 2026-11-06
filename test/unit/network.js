@@ -1,199 +1,45 @@
-/* globals assert */
-/* eslint-disable max-len */
+import {describe, it} from 'node:test';
+import assert from 'node:assert/strict';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 
-// const proxyquire = require('proxyquire');
-// const monerodMocks = require('../mocks/monerod.js');
+const exec = promisify(execFile);
+const moduleUrl = new URL('../../logic/network.js', import.meta.url).href;
+const onion = `${'a'.repeat(56)}.onion`;
 
-import proxyquire from 'proxyquire';
-import monerodMocks from '../mocks/monerod.js';
+// Config constants are initialized on import. A fresh process tests each real
+// environment configuration without proxyquire or leaking module-cache state.
+async function addresses(domain = '', hiddenService = '') {
+  const source = `
+    import http from 'node:http';
+    import https from 'node:https';
+    const deny = () => { throw new Error('Address discovery must not contact external services'); };
+    http.get = http.request = https.get = https.request = globalThis.fetch = deny;
+    const {getMonerodAddresses} = await import(${JSON.stringify(moduleUrl)});
+    console.log(JSON.stringify(await getMonerodAddresses()));
+  `;
+  const {stdout} = await exec(process.execPath, ['--input-type=module', '-e', source], {
+    env: {...process.env, DEVICE_DOMAIN_NAME: domain, MONERO_P2P_HIDDEN_SERVICE: hiddenService},
+    timeout: 5000,
+  });
+  return JSON.parse(stdout.trim());
+}
 
-describe('networkLogic', function() {
-
-  describe('getMonerodAddresses', function() {
-
-    it('should return an ipv4 address', function(done) {
-
-      const peerInfo = monerodMocks.getPeerInfo();
-
-      const ipv4 = '10.11.12.13';
-      const port = '10000';
-      peerInfo.result[0].addrlocal = ipv4 + ':' + port;
-
-      const monerodServiceStub = {
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', monerodServiceStub);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], ipv4);
-
-        done();
-      });
-    });
-
-    it('should return an ipv4 address and onion address', function(done) {
-
-      const peerInfo = monerodMocks.getPeerInfo();
-
-      const ipv4 = '10.11.12.13';
-      const port = '10000';
-      peerInfo.result[0].addrlocal = ipv4 + ':' + port;
-
-      const monerodServiceStub = {
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', monerodServiceStub);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 2);
-        assert.equal(response[0], ipv4);
-        assert.equal(true, response[1].includes('onion'));
-
-        done();
-      });
-    });
-
-    it('should return an ipv6 address', function(done) {
-
-      const peerInfo = monerodMocks.getPeerInfo();
-
-      const ipv6 = '566f:2401:22be:9a6d:23ef:2558:5545:b3fe';
-      const port = '10000';
-
-      for (const peer of peerInfo.result) {
-        peer.addrlocal = ipv6 + ':' + port;
-      }
-
-      const monerodServiceStub = {
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', monerodServiceStub);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], ipv6);
-
-        done();
-      });
-    });
-
-    it('should handle missing addrlocal information', function(done) {
-
-      const peerInfo = monerodMocks.getPeerInfo();
-
-      const ipv4 = '10.11.12.13';
-      delete peerInfo.result[0].addrlocal;
-
-      const monerodServiceStub = {
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', monerodServiceStub);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], ipv4);
-
-        done();
-      });
-    });
-
-    it('should handle discrepancies in ip addresses', function(done) {
-
-      const peerInfo = monerodMocks.getPeerInfo();
-
-      const ipv4 = '10.11.12.14';
-      const port = '10000';
-      peerInfo.result[0].addrlocal = ipv4 + ':' + port;
-
-      const monerodServiceStub = {
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', monerodServiceStub);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], '10.11.12.13');
-
-        done();
-      });
-    });
-
-    it('should handle calls to ipinfo for ipv4', function(done) {
-
-      const ipv4 = '10.11.12.15';
-      const peerInfo = monerodMocks.getPeerInfoEmpty();
-      const ipInfo = {
-        out: ipv4 + '\n'
-      };
-
-      const serviceStubs = {
-        'services/bash.js': {
-          exec: () => Promise.resolve(ipInfo)
-        },
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', serviceStubs);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], ipv4);
-
-        done();
-      });
-    });
-
-    it('should handle calls to ipinfo for ipv6', function(done) {
-
-      const ipv6 = '566f:2401:22be:9a6d:23ef:2558:5545:b3fe';
-      const peerInfo = monerodMocks.getPeerInfoEmpty();
-      const ipInfo = {
-        out: ipv6 + '\n'
-      };
-
-      const serviceStubs = {
-        'services/bash.js': {
-          exec: () => Promise.resolve(ipInfo)
-        },
-        'build/services/monerod.js': {
-          getPeerInfo: () => Promise.resolve(peerInfo),
-          getNetworkInfo: () => Promise.resolve(monerodMocks.getNetworkInfoWithoutTor()),
-        }
-      };
-
-      const networkLogic = proxyquire('logic/network.js', serviceStubs);
-
-      networkLogic.getMonerodAddresses().then(function(response) {
-        assert.equal(response.length, 1);
-        assert.equal(response[0], ipv6);
-
-        done();
-      });
-    });
-
+describe('networkLogic.getMonerodAddresses', () => {
+  it('returns a configured IPv4 address without external lookups', async () => {
+    assert.deepEqual(await addresses('10.11.12.13'), ['10.11.12.13']);
+  });
+  it('returns both the configured local and onion addresses', async () => {
+    assert.deepEqual(await addresses('10.11.12.13', onion), ['10.11.12.13', onion]);
+  });
+  it('preserves a configured IPv6 address without treating its suffix as a port', async () => {
+    const ipv6 = '566f:2401:22be:9a6d:23ef:2558:5545:b3fe';
+    assert.deepEqual(await addresses(ipv6), [ipv6]);
+  });
+  it('returns only the onion address when no local domain is configured', async () => {
+    assert.deepEqual(await addresses('', onion), [onion]);
+  });
+  it('returns no addresses when neither is configured', async () => {
+    assert.deepEqual(await addresses(), []);
   });
 });

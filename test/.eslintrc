@@ -1,9 +1,5 @@
 {
-    "extends": "../.eslintrc",
-    "env": {
-        "mocha": true
-    },
-    "rules": {
-        "no-magic-numbers": "off"
-    }
+  "root": true,
+  "env": {"node": true, "es2022": true},
+  "parserOptions": {"ecmaVersion": "latest", "sourceType": "module"}
 }

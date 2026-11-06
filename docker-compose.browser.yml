@@ -1,0 +1,13 @@
+# Browser-test limits for disposable local deployments.
+# DNS checkpoints hang in some development networks; leave peer discovery enabled.
+services:
+  monerod:
+    command:
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18081
+      - --rpc-login=monero:monero
+      - --disable-dns-checkpoints
+      - --limit-rate-down=1024
+      - --limit-rate-up=256
+      - --out-peers=4
+      - --igd=disabled

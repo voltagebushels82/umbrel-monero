@@ -20,7 +20,7 @@
       </div>
       <loading v-else-if="loading" :progress="loadingProgress"> </loading>
       <!-- component matched by the route will render here -->
-      <router-view v-else v-slot="{ Component }"><component :is="Component" /></router-view>
+      <div v-else><router-view /></div>
     </transition>
   </div>
 </template>
@@ -128,7 +128,7 @@ export default {
 .loading-leave-active {
   transition: opacity 0.4s ease;
 }
-.loading-enter {
+.loading-enter-from {
   opacity: 0;
   // filter: blur(70px);
 }
@@ -136,7 +136,7 @@ export default {
   opacity: 1;
   // filter: blur(0);
 }
-.loading-leave {
+.loading-leave-from {
   opacity: 1;
   // filter: blur(0);
 }

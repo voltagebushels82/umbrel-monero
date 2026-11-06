@@ -22,5 +22,5 @@ COPY models ./models
 COPY routes ./routes
 COPY services ./services
 COPY utils ./utils
-EXPOSE 8889
-CMD ["npm", "start"]
+EXPOSE 8889 9976
+CMD ["node", "bin/container.js"]

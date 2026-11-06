@@ -25,3 +25,5 @@ umbrel@umbrel.local
 build/
 playwright-report/
 test-results/
+
+!.env.example

@@ -63,7 +63,7 @@ export default {
   }
 }
 
-.qr-logo-popup-enter {
+.qr-logo-popup-enter-from {
   &.qr-logo {
     transform: translate3d(-50%, -50%, 0) scale(0);
     opacity: 0;
@@ -71,7 +71,7 @@ export default {
 }
 
 .qr-logo-popup-enter-to,
-.qr-logo-popup-leave,
+.qr-logo-popup-leave-from,
 .qr-logo-popup-leave-to {
   &.qr-logo {
     transform: translate3d(-50%, -50%, 0) scale(1);

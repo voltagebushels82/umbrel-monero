@@ -5,7 +5,7 @@
   "author": "Deverick",
   "type": "module",
   "scripts": {
-    "lint": "node --check app.js",
+    "lint": "node scripts/check-syntax.js",
     "build": "tsc",
     "start": "node ./bin/www.js",
     "start:server:dev": "node --env-file-if-exists=.env --watch ./bin/www.js",
@@ -14,9 +14,11 @@
     "install:ui": "npm ci --prefix ui",
     "build:ui": "cd ui && npm run build",
     "serve:ui": "cd ui && npm run serve",
-    "test": "npm run build && node --test test/*.test.js",
-    "coverage": "npm run build && node --experimental-test-coverage --test test/*.test.js",
-    "test:ui": "playwright test"
+    "test": "npm run build && node --test test/*.test.js test/endpoints/*.js test/endpoints/v1/monerod/*.js test/unit/*.js",
+    "coverage": "npm run build && node --experimental-test-coverage --test test/*.test.js test/endpoints/*.js test/endpoints/v1/monerod/*.js test/unit/*.js",
+    "test:ui": "playwright test",
+    "test:docker:ui": "playwright test --config playwright.docker.config.js",
+    "test:anonymity": "node scripts/test-anonymity.js"
   },
   "dependencies": {
     "axios": "^1.21.0",
@@ -29,6 +31,7 @@
     "http-auth": "^4.2.1",
     "monero-ts": "^0.11.22",
     "morgan": "^1.12.1",
+    "undici": "^8.12.4",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },

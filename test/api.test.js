@@ -6,6 +6,8 @@ import {mkdtemp, rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 const dir = await mkdtemp(path.join(os.tmpdir(), 'monero-api-test-'));
+let chain = 'mainnet';
+const genesis = () => (chain === 'mainnet' ? '1' : '2').repeat(64);
 const rpc = http.createServer((req, res) => {
   let body = '';
   req.on('data', chunk => body += chunk);
@@ -17,6 +19,8 @@ const rpc = http.createServer((req, res) => {
     else if (request.method === 'get_version') response = {jsonrpc: '2.0', id: request.id, result: {status: 'OK', version: 196621, release: true}};
     else if (request.method === 'get_info' || req.url === '/get_info') response = request.method ? {jsonrpc: '2.0', id: request.id, result: info} : info;
     else if (request.method === 'get_connections') response = {jsonrpc: '2.0', id: request.id, result: {status: 'OK', connections: []}};
+    else if (request.method === 'on_get_block_hash') response = {jsonrpc: '2.0', id: request.id, result: genesis()};
+    else if (request.method === 'get_block') response = {jsonrpc: '2.0', id: request.id, result: {status: 'OK', block_header: {hash: genesis(), height: 0, timestamp: 0, num_txes: 0, block_size: 80, prev_hash: '0'.repeat(64)}}};
     else if (req.url === '/get_transaction_pool_stats') response = {status: 'OK', pool_stats: {bytes_total: 0, txs_total: 0}};
     else response = {status: 'OK'};
     res.setHeader('Content-Type', 'application/json');res.end(JSON.stringify(response));
@@ -45,4 +49,14 @@ test('invalid address validation is safe', async () => {
 });
 test('block route rejects missing/invalid and unbounded queries', async () => {
   for (const url of ['block', 'blocks?from=-1&to=5', 'blocks?from=no&to=5', 'blocks?from=0&to=100000']) assert.equal((await fetch(`${base}/v1/monerod/info/${url}`)).status, 400);
+});
+test('cached blocks do not leak between networks at the same height', async () => {
+  const blocks = async () => (await (await fetch(`${base}/v1/monerod/info/blocks?from=0&to=1`)).json()).blocks;
+  try {
+    assert.equal((await blocks())[0].hash, '1'.repeat(64));
+    chain = 'testnet';
+    assert.equal((await blocks())[0].hash, '2'.repeat(64));
+    chain = 'mainnet';
+    assert.equal((await blocks())[0].hash, '1'.repeat(64));
+  } finally {chain = 'mainnet';}
 });

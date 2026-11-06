@@ -58,6 +58,10 @@ const mutations = {
   },
 
   syncStatus(state, sync) {
+    if (state.chain && state.chain !== sync.chain) {
+      state.blocks = [];
+      state.chartData = [];
+    }
     state.percent = Number(toPrecision(parseFloat(sync.percent) * 100, 2));
     state.currentBlock = sync.currentBlock;
     state.blockHeight = sync.headerCount;
@@ -88,6 +92,8 @@ const mutations = {
   },
 
   setP2PInfo(state, p2pInfo) {
+    state.p2p.i2pAddress = p2pInfo.i2pAddress;
+    state.p2p.i2pConnectionString = p2pInfo.i2pConnectionString;
     state.p2p.onionPort = p2pInfo.onionPort;
     state.p2p.port = p2pInfo.port;
     state.p2p.localAddress = p2pInfo.localAddress;

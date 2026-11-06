@@ -6,7 +6,7 @@ import { isValidAddress } from '../build/services/monerod.js';
 const DEFAULT_ADVANCED_SETTINGS = {
   tor: process.env.MONERO_TOR !== 'false',
   torOnly: false,
-  i2p: false,
+  i2p: process.env.MONERO_I2P === 'true',
   incomingConnections: false,
   dbSyncMode: constants.MONERO_SYNC_MODE,
   dbSyncType: constants.MONERO_SYNC_TYPE,
