@@ -37,17 +37,17 @@
               </div>
             </div>
             <small class="w-sm-75 d-block text-muted mt-1">
-              Connect to Tor peers and relay transactions through Tor. Other outgoing peers still use clearnet unless Tor-only routing is enabled.
+              Connect to onion peers and relay locally submitted transactions through Tor. This does not route connections to clearnet peers through Tor.
             </small>
           </div>
 
 
           <hr class="advanced-settings-divider" />
           <div class="d-flex justify-content-between align-items-center">
-            <label for="tor-only">Route all outgoing P2P traffic through Tor</label>
-            <toggle-switch id="tor-only" :on="settings.torOnly" @toggle="status => { settings.torOnly = status; if (status) { settings.tor = true; settings.i2p = false; } }" />
+            <label for="tor-only">Route clearnet peer connections through Tor</label>
+            <toggle-switch id="tor-only" :on="settings.torOnly" @toggle="status => (settings.torOnly = status)" />
           </div>
-          <small class="text-muted">Disables direct incoming clearnet peers, UPnP and DNS lookups. Requires a working Tor SOCKS proxy. The Tor peers option alone only proxies Tor connections and transactions.</small>
+          <small class="text-muted">Sync the blockchain with clearnet peers through Tor exits instead of connecting directly. Works independently of the Tor and I2P peer options. Disables direct incoming clearnet peers, UPnP and daemon DNS lookups. Requires a working Tor SOCKS proxy.</small>
           <hr class="advanced-settings-divider" />
           <div class="d-flex justify-content-between align-items-center">
             <label for="zmq">Enable ZMQ for P2Pool</label>
@@ -69,14 +69,19 @@
                   id="i2p"
                   class="align-self-center"
                   :on="settings.i2p"
-                  @toggle="status => { settings.i2p = status; if (status) settings.torOnly = false; }"
+                  @toggle="status => (settings.i2p = status)"
                 ></toggle-switch>
               </div>
             </div>
             <small class="w-sm-75 d-block text-muted mt-1">
-              Connect to peers available on the I2P network.
+              Connect to I2P peers and relay locally submitted transactions through I2P. I2P connections use the I2P router independently of Tor.
             </small>
           </div>
+
+          <p class="text-muted mt-3 mb-0">
+            With Tor or I2P peers enabled, locally submitted transactions are relayed only through those networks and wait if no anonymity peers are available.
+            Blockchain sync requires clearnet peers, reached directly or through Tor exits; onion and I2P peers cannot supply blocks.
+          </p>
 
           <hr class="advanced-settings-divider" />
 
@@ -430,18 +435,6 @@
 
       <b-alert
         variant="warning"
-        :model-value="showOutgoingConnectionsError"
-        class="mt-2"
-        @dismissed="showOutgoingConnectionsError = false"
-      >
-        <small>
-          Please choose at least one source for outgoing connections (Clearnet
-          or Tor).
-        </small>
-      </b-alert>
-
-      <b-alert
-        variant="warning"
         :model-value="showMiningError"
         class="mt-2"
         @dismissed="showMiningError = false"
@@ -506,7 +499,6 @@ export default {
         { value: "testnet", text: "testnet" },
         { value: "stagenet", text: "stagenet" }
       ],
-      showOutgoingConnectionsError: false,
       showMiningError: false
     };
   },
@@ -534,7 +526,6 @@ export default {
   },
   methods: {
     async submit() {
-      this.showOutgoingConnectionsError = false;
       this.showMiningError = false;
       let addressVerification = !this.settings.mining;
       try {
@@ -543,8 +534,6 @@ export default {
         this.showMiningError = true;
         return;
       }
-      if (!this.isOutgoingConnectionsValid())
-        return (this.showOutgoingConnectionsError = true);
       //Here we need to verify the monero address is valid
       if (this.settings.mining && !addressVerification)
         return (this.showMiningError = true);
@@ -561,10 +550,6 @@ export default {
       // deep clone moneroConfig in order to properly reset state if user hides modal instead of clicking the save and restart button
       this.settings = JSON.parse(JSON.stringify(this.moneroConfig));
       if (!this.settings.minercpuTarget) this.settings.minercpuTarget = 40;
-    },
-    isOutgoingConnectionsValid() {
-      return !this.settings.torOnly || this.settings.tor;
-      //return this.settings.tor || this.settings.i2p;
     },
     async isValidAddress(address) {
       const { data } = await API.post(`${import.meta.env.VITE_API_BASE_URL || ""}/v1/monerod/system/validate-address`, {address, network: this.settings.network});

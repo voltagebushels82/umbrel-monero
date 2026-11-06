@@ -5,6 +5,7 @@ import { isValidAddress } from '../build/services/monerod.js';
 
 const DEFAULT_ADVANCED_SETTINGS = {
   tor: process.env.MONERO_TOR !== 'false',
+  // Retain the saved key for compatibility: proxy clearnet peers through Tor.
   torOnly: false,
   i2p: process.env.MONERO_I2P === 'true',
   incomingConnections: false,
@@ -39,7 +40,6 @@ export function normalizeSettings(input = {}) {
   if (!['fast', 'fastest', 'safe'].includes(settings.dbSyncMode)) throw new ValidationError('Invalid database sync mode');
   if (/[\r\n\0]/.test(settings.moneroAddress)) throw new ValidationError('Invalid mining address');
   if (settings.mining && (!Number.isInteger(settings.minercpuTarget) || settings.minercpuTarget < 1 || settings.minercpuTarget > 100)) throw new ValidationError('Mining CPU target must be between 1 and 100');
-  if (settings.torOnly && (!settings.tor || settings.i2p)) throw new ValidationError('Tor-only requires Tor enabled and I2P disabled');
   return settings;
 }
 
@@ -66,10 +66,13 @@ export function settingsToMultilineConfString(input) {
     if (!settings.moneroAddress) throw new ValidationError('Mining requires a reward address');
     lines.push('bg-mining-enable=1', `start-mining=${settings.moneroAddress}`, `bg-mining-miner-target=${settings.minercpuTarget}`);
   }
+  if (settings.torOnly) {
+    const proxy = endpoint(constants.TOR_PROXY_IP, constants.TOR_PROXY_PORT, 'Tor SOCKS proxy');
+    lines.push(`proxy=${proxy}`, 'proxy-allow-dns-leaks=0', 'disable-dns-checkpoints=1', 'enable-dns-blocklist=0', 'check-updates=disabled');
+  }
   if (settings.tor) {
     const proxy = endpoint(constants.TOR_PROXY_IP, constants.TOR_PROXY_PORT, 'Tor SOCKS proxy');
     lines.push(`tx-proxy=tor,${proxy}`);
-    if (settings.torOnly) lines.push(`proxy=${proxy}`, 'proxy-allow-dns-leaks=0', 'disable-dns-checkpoints=1', 'enable-dns-blocklist=0', 'check-updates=disabled');
     if (settings.incomingConnections) {
       const onion = constants.MONERO_P2P_HIDDEN_SERVICE;
       if (!/^[a-z2-7]{56}\.onion$/.test(onion || '')) throw new ValidationError('A valid Tor v3 P2P hidden service is required');

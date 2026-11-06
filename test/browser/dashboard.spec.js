@@ -40,13 +40,24 @@ test('dashboard, connection details and settings work on Vue 3', async ({page}) 
   await expect(network).toHaveValue('testnet');
   await page.locator('#i2p').getByRole('switch').click();
   await page.locator('#tor-only').click();
-  await expect(page.locator('#i2p').getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText('Route clearnet peer connections through Tor', {exact: true})).toBeVisible();
+  await expect(page.locator('#i2p').getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  // Toggling I2P must preserve the clearnet proxy in either direction.
+  await page.locator('#i2p').getByRole('switch').click();
+  await page.locator('#i2p').getByRole('switch').click();
+  await expect(page.locator('#tor-only').getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  // Onion peers are independent from the clearnet proxy too.
+  await page.locator('#tor').getByRole('switch').click();
+  await expect(page.locator('#tor-only').getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  await page.locator('#tor').getByRole('switch').click();
   await page.locator('#zmq').click();
   const saved = page.waitForRequest(request => request.url().endsWith('/update-monero-config'));
   await page.getByRole('button', {name: 'Save and Restart Monero Node'}).click();
   const payload = (await saved).postDataJSON().moneroConfig;
   expect(payload.network).toBe('testnet');
   expect(payload.torOnly).toBe(true);
+  expect(payload.tor).toBe(true);
+  expect(payload.i2p).toBe(true);
   expect(payload.zmq).toBe(true);
   expect(errors).toEqual([]);
 });

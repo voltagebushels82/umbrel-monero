@@ -26,11 +26,27 @@ test('disabled incoming connections prevent inbound peers and UPnP', () => {
   assert.match(output, /^igd=disabled$/m);
   assert.doesNotMatch(output, /^anonymous-inbound=/m);
 });
-test('Tor-only proxies all outbound peers and disables clearnet listeners and DNS', () => {
+test('clearnet proxy disables direct listeners and DNS', () => {
   const output = config({torOnly: true, incomingConnections: true});
   for (const line of ['proxy=127.0.0.1:9050', 'p2p-bind-ip=127.0.0.1', 'in-peers=0', 'igd=disabled', 'disable-dns-checkpoints=1', 'enable-dns-blocklist=0', 'check-updates=disabled']) assert.ok(output.split('\n').includes(line), line);
   assert.doesNotMatch(output, /^public-node=1$/m);
-  assert.throws(() => config({torOnly: true, tor: false}), /Tor-only/);
+});
+test('clearnet proxy, Tor peers and I2P peers can be configured independently', () => {
+  for (const torOnly of [false, true]) {
+    for (const tor of [false, true]) {
+      for (const i2p of [false, true]) {
+        const output = config({torOnly, tor, i2p, incomingConnections: true});
+        const lines = output.split('\n');
+        assert.equal(lines.includes('proxy=127.0.0.1:9050'), torOnly);
+        assert.equal(lines.includes('tx-proxy=tor,127.0.0.1:9050'), tor);
+        assert.equal(lines.includes('tx-proxy=i2p,127.0.0.1:4447'), i2p);
+        assert.equal(lines.includes('p2p-bind-ip=127.0.0.1'), torOnly);
+        assert.equal(lines.includes('igd=disabled'), torOnly);
+        assert.equal(/^anonymous-inbound=a{56}\.onion:/m.test(output), tor);
+        assert.equal(/^anonymous-inbound=b{52}\.b32\.i2p,/m.test(output), i2p);
+      }
+    }
+  }
 });
 test('ZMQ RPC and P2Pool publishing are distinct from Tor', () => {
   assert.match(config({zmq: true}), /^zmq-pub=tcp:\/\/0\.0\.0\.0:18084$/m);
@@ -43,7 +59,6 @@ test('I2P uses SOCKS and forwards its persistent destination to a distinct inbou
   assert.match(output, /^anonymous-inbound=b{52}\.b32\.i2p,0\.0\.0\.0:18087,25$/m);
   assert.doesNotMatch(output, /7656/);
   assert.doesNotMatch(config({i2p: false}), /tx-proxy=i2p|b32\.i2p/);
-  assert.throws(() => config({i2p: true, torOnly: true}), /Tor-only/);
 });
 test('invalid settings and injected config lines are rejected', () => {
   for (const input of [{network: 'invalid'}, {mining: 'true'}, {mining: true, minercpuTarget: 101}, {dbSyncMode: 'fast\nfoo=1'}, {moneroAddress: 'address\nstart-mining=other'}]) assert.throws(() => normalizeSettings(input));
@@ -54,6 +69,15 @@ test('partial updates retain stored values and config/settings agree after concu
   assert.equal((await getJsonStore()).network, 'testnet');
   await Promise.all([applyCustomMoneroConfig({network: 'mainnet'}), applyCustomMoneroConfig({network: 'stagenet'})]);
   const settings = await getJsonStore();
+  assert.equal(await readFile(process.env.MONERO_CONF_FILE, 'utf8'), config(settings));
+});
+test('combined routing settings persist across partial updates', async () => {
+  await applyCustomMoneroConfig({torOnly: true, tor: true, i2p: true});
+  await applyCustomMoneroConfig({prune: true});
+  const settings = await getJsonStore();
+  assert.equal(settings.torOnly, true);
+  assert.equal(settings.tor, true);
+  assert.equal(settings.i2p, true);
   assert.equal(await readFile(process.env.MONERO_CONF_FILE, 'utf8'), config(settings));
 });
 test('startup repairs malformed inbound ports and legacy testnet without resetting settings', async () => {
